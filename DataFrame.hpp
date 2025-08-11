@@ -38,8 +38,13 @@ class DfObjectBlock {
 
 
 class DfColumn {
-  std::list<DfObjectBlock> blocks;
+  std::list<DfObjectBlock>* blocks;
+  std::list<DfColumn*> beForegined;
+  DfColumn* foreginTo;
+
   uint32_t length;
+  bool isHidden;
+  bool isReadonly;
 };
 
 
