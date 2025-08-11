@@ -2,6 +2,9 @@
 #define _MY_DATA_FRAME_HPP_
 
 #include <list>
+#include <unordered_map>
+
+class DfProcess;
 
 
 
@@ -50,8 +53,35 @@ class DfColumn {
 
 class DfDataFrame {
   std::list<DfColumn> columns;
+
+
+  DfProcess select(const char* sql);
+
+  DfProcess where(const char* sql);
+
+  DfProcess groupBy(const char* sql);
+
+  DfProcess orderBy(const char* sql);
+
+  DfProcess with(DfDataFrame& other, const char* asName);
 };
 
+
+class DfProcess {
+  std::map<std::string
+  std::unordered_map<std::string, DfColumn*> columns;
+
+
+  DfProcess select(const char* sql);
+
+  DfProcess where(const char* sql);
+
+  DfProcess groupBy(const char* sql);
+
+  DfProcess orderBy(const char* sql);
+
+  DfProcess with(DfDataFrame& other, const char* asName);
+};
 
 
 
