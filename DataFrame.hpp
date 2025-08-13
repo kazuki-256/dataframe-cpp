@@ -6,7 +6,6 @@
 #include <initializer_list>
 #include <unordered_map>
 #include <string>
-#include <iostream>
 
 #include <time.h>
 #include <string.h>
@@ -16,6 +15,7 @@ class DfObject;
 class DfObjectBlock;
 class DfColumn;
 class DfDataFrame;
+class DfRow;
 class DfProcess;
 
 
@@ -55,6 +55,13 @@ public:
 };
 
 
+class DfExceptionOutOfIndex : public std::exception {
+  const char* what() const noexcept override {
+    return "out of index";
+  }
+};
+
+
 
 class DfObject {
   union {
@@ -75,21 +82,7 @@ class DfObject {
     null = _null;
   }
 
-public:
-  ~DfObject() {
-    if (objType == DF_OBJTYPE_STRING) {
-      free(data.asString);
-    }
-  }
-
-  // create empty object
-  DfObject(DfObjectType _objType = DF_OBJTYPE_UNDEFINED) {
-    init(_objType, true);
-    data.asPointer = NULL;
-  }
-
-  // copy
-  DfObject(const DfObject& src) {
+  void copyFrom(const DfObject& src) {
     init(src.objType, src.null);
 
     if (isNull()) {
@@ -104,6 +97,19 @@ public:
     }
 
     data = src.data;
+  }
+
+public:
+  ~DfObject() {
+    if (objType == DF_OBJTYPE_STRING) {
+      free(data.asString);
+    }
+  }
+
+  // create empty object
+  DfObject(DfObjectType _objType = DF_OBJTYPE_UNDEFINED) {
+    init(_objType, true);
+    data.asPointer = NULL;
   }
 
   // set pointer
@@ -146,10 +152,10 @@ public:
   }
 
   // set date
-  DfObject(time_t date) {
-    init(DF_OBJTYPE_DATE, false);
-    data.asDate = date;
-  }
+  // DfObject(time_t date) {
+  //   init(DF_OBJTYPE_DATE, false);
+  //   data.asDate = date;
+  // }
 
 
 
@@ -166,7 +172,7 @@ public:
   // get pointer
   operator void*() const {
     if (objType != DF_OBJTYPE_POINTER && objType != DF_OBJTYPE_UNDEFINED) {
-      throw std::runtime_error("couldn't get data by different type!");
+      throw DfException("couldn't get data by different type!");
     }
     return data.asPointer;
   }
@@ -174,7 +180,7 @@ public:
   // get boolean
   operator bool() const {
     if (objType != DF_OBJTYPE_BOOLEAN && objType != DF_OBJTYPE_UNDEFINED) {
-      throw std::runtime_error("couldn't get data by different type!");
+      throw DfException("couldn't get data by different type!");
     }
     return data.asBoolean;
   }
@@ -182,7 +188,7 @@ public:
   // get string
   operator const char*() const {
     if (objType != DF_OBJTYPE_STRING && objType != DF_OBJTYPE_UNDEFINED) {
-      throw std::runtime_error("couldn't get data by different type!");
+      throw DfException("couldn't get data by different type!");
     }
     return data.asString;
   }
@@ -190,7 +196,7 @@ public:
   // get number
   operator double() const {
     if (objType != DF_OBJTYPE_NUMBER && objType != DF_OBJTYPE_UNDEFINED) {
-      throw std::runtime_error("couldn't get data by different type!");
+      throw DfException("couldn't get data by different type!");
     }
     return data.asNumber;
   }
@@ -198,7 +204,7 @@ public:
   // get number
   operator long() const {
     if (objType != DF_OBJTYPE_NUMBER && objType != DF_OBJTYPE_UNDEFINED) {
-      throw std::runtime_error("couldn't get data by different type!");
+      throw DfException("couldn't get data by different type!");
     }
     return (long)data.asNumber;
   }
@@ -206,17 +212,50 @@ public:
   // get number
   operator int() const {
     if (objType != DF_OBJTYPE_NUMBER && objType != DF_OBJTYPE_UNDEFINED) {
-      throw std::runtime_error("couldn't get data by different type!");
+      throw DfException("couldn't get data by different type!");
     }
     return (int)data.asNumber;
   }
 
   // get date
-  operator time_t() const {
-    if (objType != DF_OBJTYPE_DATE && objType != DF_OBJTYPE_UNDEFINED) {
-      throw std::runtime_error("couldn't get data by different type!");
+  // operator time_t() const {
+  //   if (objType != DF_OBJTYPE_DATE && objType != DF_OBJTYPE_UNDEFINED) {
+  //     throw DfException("couldn't get data by different type!");
+  //   }
+  //   return data.asDate;
+  // }
+
+
+  
+  // move
+  DfObject(DfObject&& src) {
+    init(src.objType, src.null);
+
+    if (isNull()) {
+      return;
     }
-    return data.asDate;
+
+    if (objType == DF_OBJTYPE_STRING) {
+      extra = src.extra;
+      data.asString = src.data.asString;
+      src.data.asString = NULL;
+      return;
+    }
+
+    data = src.data;
+    return;
+  }
+  
+  
+  // copy1
+  DfObject(const DfObject& src) {
+    copyFrom(src);
+  }
+
+  // copy2
+  inline DfObject& operator=(const DfObject& src) {
+    copyFrom(src);
+    return *this;
   }
 };
 
@@ -230,11 +269,6 @@ class DfObjectBlock {
   int highRange;
 
 
-  ~DfObjectBlock() {
-    if (objects == NULL) return;
-    
-    delete[] objects;
-  }
 
   DfObjectBlock(DfObjectType objType, int _lowRange, int _highRange) {
     int length = _highRange - _lowRange + 1;
@@ -264,7 +298,7 @@ class DfObjectBlock {
     DfObject* end = objects + _length;
 
     while (out < end) {
-      *out = DfObject(*in);
+      *out = *in;
       out++, in++;
     }
   }
@@ -284,6 +318,13 @@ class DfObjectBlock {
   // return a editable object, use real position
   DfObject& operator[](int index) {
     return *(objects + index - lowRange);
+  }
+
+public:
+  ~DfObjectBlock() {
+    if (objects == NULL) return;
+    
+    delete[] objects;
   }
 };
 
@@ -306,6 +347,36 @@ class DfColumn {
     isReadonly = _isReadOnly;
     isOwnsBlocks = true;
     blocks = new std::list<DfObjectBlock>;
+  }
+  
+  DfObject& getObjectAt(int index) const {
+    // -- negivate find --
+    if (index < 0) {
+      index = length + index;
+
+      if (index < 0 && index >= length) {
+        throw DfExceptionOutOfIndex();
+      }
+
+      for (auto iter = blocks->rbegin(); iter != blocks->rend(); iter++) {
+        if (iter->lowRange >= index) {
+          return (*iter)[index];
+        }
+      }
+      throw DfException("ObjectBlock didn't seted");
+    }
+    
+    // -- positive find --
+    if (index >= length) {
+      throw DfExceptionOutOfIndex();
+    }
+
+    for (DfObjectBlock& block : *blocks) {
+      if (index <= block.highRange) {
+        return block[index];
+      }
+    }
+    throw DfException("ObjectBlock didn't seted");
   }
 
 public:
@@ -342,7 +413,7 @@ public:
   DfColumn& addObject(const DfObject& object) {
     if (objType != object.getObjectType()) {
       if (objType != DF_OBJTYPE_UNDEFINED) {
-        throw std::runtime_error("couldn't add %d type object to %d type column!");
+        throw DfException("couldn't add %d type object to %d type column!", object.getObjectType(), objType);
       }
       objType = object.getObjectType();
     }
@@ -360,7 +431,7 @@ public:
   DfColumn& addObject(DfObject&& object) {
     if (objType != object.getObjectType()) {
       if (objType != DF_OBJTYPE_UNDEFINED) {
-        throw std::runtime_error("couldn't add %d type object to %d type column!");
+        throw DfException("couldn't add %d type object to %d type column!", object.getObjectType(), objType);
       }
       objType = object.getObjectType();
     }
@@ -371,27 +442,33 @@ public:
       return *this;
     }
 
-    blocks->push_back(DfObjectBlock(&object, 0, length, length + 7));
+    blocks->push_back(DfObjectBlock(getObjectType(), length, length + 7));
+    blocks->end()->objects[0] = object;
     return *this;
   }
 
 
 
   const DfObject& operator[](int index) const {
-    if (index < 0) {
-      
-    }
-
-    if (index > length) {
-      throw std::out_of_range("requesting []");
-    }
-
-
+    return getObjectAt(index);
   }
 
   DfObject& operator[](int index) {
-
+    if (index >= length) {
+      addObject(DfObject(getObjectType()));
+      return (*blocks->end())[length];
+    }
+    return getObjectAt(index);
   }
+
+
+  DfObjectType getObjectType() const {
+    return (DfObjectType)objType;
+  }
+
+
+
+  // -- iterator --
 };
 
 
