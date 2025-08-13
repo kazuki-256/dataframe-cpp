@@ -63,6 +63,27 @@ class DfExceptionOutOfIndex : public std::exception {
 
 
 
+
+class DfDate {
+  time_t t;
+  static char sharedBuffer[64];
+
+public:
+  DfDate(time_t _t) {
+    t = _t;
+  }
+
+  DfDate(const char* strdate) {
+    
+  }
+
+
+  const char* toString(char* buf = sharedBuffer, const char* fmt = "%d/%m/%y %H:%M") const {
+    
+  }
+};
+
+
 class DfObject {
   union {
     void* asPointer;
