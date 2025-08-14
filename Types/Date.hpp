@@ -2,14 +2,11 @@
 #define _DF_DATE_HPP_
 
 #include <time.h>
+#include <string.h>
+#include <stdio.h>
 
 
 
-
-
-#ifdef __CYGWIN__
-
-#define DF_IN_CYGWIN(A, B) A
 
 // parse month
 size_t dfParseMonth(const char* strmonth, size_t n, int* month) {
@@ -188,17 +185,6 @@ size_t dfParseTime(const char* strdate, const char* fmt, struct tm* tm) {
 
 
 
-#else
-
-#define DF_IN_CYGWIN(A, B) B
-
-#endif
-
-
-
-
-
-
 
 
 
@@ -215,7 +201,7 @@ public:
     DfDate(const char* strdate, const char* fmt = defaultFormat) {
         struct tm tm{};
 
-        DF_IN_CYGWIN(dfParseTime, strptime)(strdate, fmt, &tm);
+        dfParseTime(strdate, fmt, &tm);
         t = mktime(&tm);
     }
 

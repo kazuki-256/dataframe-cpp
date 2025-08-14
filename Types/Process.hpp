@@ -5,8 +5,11 @@
 #include "DataFrame.hpp"
 #endif
 
+#include <vector>
+#include <set>
 
-typedef bool (*DfProcessCallback)(DfObject& writeObject, void*, void*);
+
+typedef bool (*DfProcessCallback)(DfObject& writeObject, DfRow& sourcesRow, DfObject&);
 
 
 
@@ -16,19 +19,19 @@ class DfProcessTask {
   friend class DfProcessOutput;
 
   DfProcessCallback callback;
-  void* userptr1;
-  void* userptr2;
+  DfObject param;
 
-  DfProcessTask(DfProcessCallback _callback, void* _userptr1, _userptr2) {
+  DfProcessTask(DfProcessCallback _callback, const DfObject& object) {
     callback = _callback;
-    userptr1 = _userptr1;
-    userptr2 = _userptr2;
+    param = object;
   }
 
-  inline bool run(DfObject& writeObject) {
-    return callback(writeObject, userptr1, userptr2);
+  inline bool run(DfObject& writeObject, DfRow& srcRow) {
+    return callback(writeObject, srcRow, param);
   }
 };
+
+
 
 class DfProcessSource {
   friend class DfProcess;
@@ -63,6 +66,8 @@ public:
 };
 
 
+
+
 class DfProcess {
   std::list<DfProcessOutput> outputs;
 std::vector<DfProcessSource> inputs;
@@ -70,12 +75,12 @@ std::vector<DfProcessSource> inputs;
   std::list<DfProcessTask> filter;
   std::set<DfObject> groups;
 
-  DfSource* order = NULL;
+  DfProcessSource* order = NULL;
   bool desc = false;
 
   int limit = -1;
 
-  DfDataFrame* temp = NULL;
+  DfDataFrame* temp = NULL;   // for order by
 
 public:
 
@@ -87,6 +92,8 @@ public:
 
 
 
+  // === create ===
+
   DfProcess(DfColumn& column) {
 
   }
@@ -96,6 +103,8 @@ public:
   }
 
 
+
+  // === execute / convert ===
 
   class Iterator {
 
@@ -119,6 +128,8 @@ public:
   }
 
 
+
+  // === SQL ===
 
   DfProcess& select(const char* selectCode) {
 
@@ -152,6 +163,19 @@ public:
 
   }
 
+
+  DfProcess& mutate(const char* code) {
+
+  }
+
+
+
+  // === vector operation ===
+
+
+
+
+  // === print ===
 
   DfProcess& print() {
 
