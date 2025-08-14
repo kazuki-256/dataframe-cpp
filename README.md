@@ -7,6 +7,20 @@ programmer: ふうき255
 last update: 2025/08/14
 
 
+## Features
+
+1. read/write data frame from/to .csv, .xlsx, .html, .db
+3. vector operation
+4. SQL execution
+5. OpenCV::RandomForest
+
+## depends
+
+1. Freexl (if you want to read .xlsx)
+2. xlsxio_write (if you want to write .xlsx)
+3. OpenCV (if you want RandomForest)
+4. Sqlite3 (if you want to read/write .db)
+5. myhtml2 (original included [myhtml2.3.0](https://github.com/Fuuki255/myhtml2) at package)
 
 ## classes
 
