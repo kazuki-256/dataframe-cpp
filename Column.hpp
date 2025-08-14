@@ -10,6 +10,58 @@
 #include <list>
 
 
+typedef DfObject& (*DfRowGetByString(void* userptr, const char* colName);
+typedef DfObject& (*DfRowGetByIndex(void* userptr, int index);
+
+typedwd int (*DfRowGetLength(void* userptr);
+
+typedef void (*DfRowRelease)(void* userptr);
+
+
+
+class DfRow {
+  void* userptr;
+
+  DfRowGetByString funcGetByString;
+  DfRowGetByIndex funcGetByIndex;
+
+  DfRowGetLength funcGetLength;
+
+  DfRowRelease funcRelease;
+
+
+  DfRow(void* _userptr,
+        DfRowGetByString getByString,
+        DfRowGetByIndex getByIndex,
+        DfRowGetLength getLength,
+        DfRowRelease release)
+  {
+    userptr = userptr;
+    funcGetByString = getByString;
+    funcGetByIndex = getByIndex;
+    funcGetLength = getLength;
+    funcRelease = release;
+  }
+
+public:
+  ~DfRow() {
+    if (userptr) release(userptr)
+  }
+
+  DfObject& operator[](const char* colName) {
+    return getByString(userptr, colName);
+  }
+
+  DfObject& operator[](int index) {
+    return getByIndex(userptr, index);
+  }
+
+  int getLength() const {
+    return getLength();
+  }
+};
+
+
 
 class DfObjectBlock {
   friend class DfColumn;
