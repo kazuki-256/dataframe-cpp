@@ -57,7 +57,7 @@ class DfObjectBlock {
 
 
 
-  void fillTypes(DfObjectType objType, int start, int length) {
+  void fillTypes(DfType objType, int start, int length) {
     DfObject* out = objects + start - lowRange;
     DfObject* end = out + length;
 
@@ -166,7 +166,7 @@ class DfColumn {
 
 
   // create column with uninited objects
-  DfColumn(int _length, DfObjectType _objType) {
+  DfColumn(int _length, DfType _objType) {
     init(isReadonly);
 
     length = 0;
@@ -202,12 +202,12 @@ public:
       return;
     }
     
-    objType = _objects.begin()->getObjectType();
+    objType = _objects.begin()->getType();
 
     blocks->push_back(DfObjectBlock(_objects, 0, length - 1));
   }
 
-  DfColumn(DfObjectType _objType = DF_OBJTYPE_UNDEFINED, bool _isReadOnly = false) {
+  DfColumn(DfType _objType = DF_OBJTYPE_UNDEFINED, bool _isReadOnly = false) {
     init(isReadonly);
 
     length = 0;
@@ -218,8 +218,8 @@ public:
   
   // == get information ==
 
-  inline DfObjectType getObjectType() const {
-    return (DfObjectType)objType;
+  inline DfType getObjectType() const {
+    return (DfType)objType;
   }
 
   inline int getLength() const {
@@ -302,11 +302,11 @@ public:
 
   DfColumn& addObject(const DfObject& object) {
     printf("addObject1: \n");
-    if (objType != object.getObjectType()) {
+    if (objType != object.getType()) {
       if (objType != DF_OBJTYPE_UNDEFINED) {
-        throw DfException("couldn't add %d type object to %d type column!", object.getObjectType(), objType);
+        throw DfException("couldn't add %d type object to %d type column!", object.getType(), objType);
       }
-      objType = object.getObjectType();
+      objType = object.getType();
     }
 
     DfObjectBlock& last = *blocks->end();
@@ -321,11 +321,11 @@ public:
   }
 
   DfColumn& addObject(DfObject&& object) {
-    if (objType != object.getObjectType()) {
+    if (objType != object.getType()) {
       if (objType != DF_OBJTYPE_UNDEFINED) {
-        throw DfException("couldn't add %d type object to %d type column!", object.getObjectType(), objType);
+        throw DfException("couldn't add %d type object to %d type column!", object.getType(), objType);
       }
-      objType = object.getObjectType();
+      objType = object.getType();
     }
 
     DfObjectBlock& last = blocks->back();

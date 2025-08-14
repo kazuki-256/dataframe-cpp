@@ -42,7 +42,7 @@ std::string dfRepr(const std::string& s) {
 
 
 
-typedef enum DfObjectType {
+typedef enum DfType {
   DF_OBJTYPE_UNDEFINED,
 
   DF_OBJTYPE_POINTER,
@@ -51,7 +51,7 @@ typedef enum DfObjectType {
   DF_OBJTYPE_NUMBER,
   DF_OBJTYPE_DATE,
 
-} DfObjectType;
+} DfType;
 
 
 
@@ -103,7 +103,7 @@ public:
   }
 
   // create empty object
-  DfObject(DfObjectType _objType = DF_OBJTYPE_UNDEFINED) {
+  DfObject(DfType _objType = DF_OBJTYPE_UNDEFINED) {
     init(_objType, true);
     data.asPointer = NULL;
   }
@@ -121,12 +121,12 @@ public:
   }
 
   // set string
-  DfObject(const std::string str) {
+  DfObject(const char* str) {
     init(DF_OBJTYPE_STRING, false);
 
-    extra = (int)str.length();
+    extra = (int)strlen(str);
     data.asString = (char*)malloc(extra + 1);
-    strcpy(data.asString, str.c_str());
+    strcpy(data.asString, str);
   }
 
   // set number
@@ -168,10 +168,10 @@ public:
     if (objType == DF_OBJTYPE_NUMBER) {
       return data.asNumber ? true : false;
     }
-    if (objType != DF_OBJTYPE_BOOLEAN && objType != DF_OBJTYPE_UNDEFINED) {
-      throw DfException("couldn't get data by different type!");
+    if (objType == DF_OBJTYPE_BOOLEAN || objType == DF_OBJTYPE_UNDEFINED) {
+      return data.asBoolean;
     }
-    return data.asBoolean;
+    throw DfException("couldn't get data by different type!");
   }
 
   // get string
@@ -259,8 +259,8 @@ public:
 
 
 
-  DfObjectType getObjectType() const {
-    return (DfObjectType)objType;
+  DfType getType() const {
+    return (DfType)objType;
   }
 
   bool isNull() const {
