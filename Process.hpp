@@ -73,6 +73,8 @@ std::vector<DfProcessSource> inputs;
   DfSource* order = NULL;
   bool desc = false;
 
+  int limit = -1;
+
   DfDataFrame* temp = NULL;
 
 public:
@@ -141,12 +143,12 @@ public:
   }
 
 
-  DfProcess& groupBy(const char* columnName) {
+  DfProcess& groupBy(const char* colName) {
 
   }
 
 
-  DfProcess& orderBy(const char* columnName, int desc = 0) {
+  DfProcess& orderBy(const char* colName, int desc = 0) {
 
   }
 
