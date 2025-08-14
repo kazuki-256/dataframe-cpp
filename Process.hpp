@@ -69,6 +69,8 @@ std::vector<DfProcessSource> inputs;
 
   std::list<DfProcessTask> filter;
   std::set<DfObject> groups;
+
+  DfSource* order = NULL;
   bool desc = false;
 
   DfDataFrame* temp = NULL;
