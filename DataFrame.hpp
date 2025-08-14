@@ -25,7 +25,7 @@ public:
     
   }
 
-  DfDataFrame(const std::initializer_list<std::pair<std::string, DfColumn>>& _columns) {
+  DfDataFrame(const std::initializer_list<std::pair<const char*, DfColumn>>& _columns) {
     
   }
 
@@ -56,53 +56,6 @@ public:
   DfProcess orderBy(const char* sql) const;
 
   DfProcess with(DfDataFrame& other, const char* asName) const;
-};
-
-
-
-
-class DfRow {
-  std::unordered_map<std::string, DfColumn*>* columns;
-  int index;
-};
-
-
-
-class DfProcess {
-  std::unordered_map<std::string, DfDataFrame*> dataFrames;
-  std::unordered_map<std::string, DfColumn*> columns;
-
-  int targetedIndex;
-
-  DfProcess(std::list<DfDataFrame>& _dataFrames, std::list<DfColumn>& _columns) {
-    
-  }
-
-public:
-
-  DfProcess& select(const char* sql);
-
-  DfProcess& where(const char* sql);
-
-  DfProcess& groupBy(const char* sql);
-
-  DfProcess& orderBy(const char* sql);
-
-  DfProcess& with(DfDataFrame& other, const char* asName);
-
-
-
-  operator DfColumn() {
-
-  }
-
-  operator DfRow() {
-    
-  }
-
-  operator DfDataFrame() {
-    
-  }
 };
 
 
