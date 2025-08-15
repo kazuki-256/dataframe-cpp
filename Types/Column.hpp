@@ -11,45 +11,41 @@
 
 
 
-class DfObjectBlock {
+class DfObjectChunk {
   friend class DfColumn;
 
   DfObject* objects;
-  int lowRange;
-  int highRange;
+  int usage;
+  int capacity;
 
+
+  void init(int _capacity) {
+    objects = (DfObject*)calloc(capacity, sizeof(DfObjects));
+    usage = 0;
+    capacity = _capacity;
+  }
 
 
   // create block without any settings
-  DfObjectBlock(int _lowRange, int _highRange) {
-    objects = new DfObject[_highRange - _lowRange + 1];
-    lowRange = _lowRange;
-    highRange = _highRange;
+  DfObjectBlock(int capacity) {
+    init(capacity);
   }
 
   // copy for other array
-  DfObjectBlock(const DfObject* _objects, int _length, int _lowRange, int _highRange) {
-    objects = new DfObject[_length];
-    lowRange = _lowRange;
-    highRange = _highRange;
-
+  fills(int start, const DfObject* srcObjs, int length) {
     // -- fastest array copies --
-    DfObject* out = objects;
-    const DfObject* in  = _objects;
-    DfObject* end = objects + _length;
+    DfObject* out = objects + start;
+    const DfObject* in  = srcObjs;
+    DfObject* end = srcObjs + length;
 
     while (out < end) {
       *out = *in;
       out++, in++;
     }
+    usage = MAX(usage, start + length);
   }
 
-  DfObjectBlock(const std::initializer_list<DfObject>& _objects, int _lowRange, int _highRange) {
-    objects = new DfObject[_objects.size()];
-    lowRange = _lowRange;
-    highRange = _highRange;
-
-    int index = 0;
+  fill(const std::initializer_list<DfObject>& _objects) {
     for (const DfObject& obj : _objects) {
       objects[index++] = obj;
     }
@@ -67,9 +63,9 @@ class DfObjectBlock {
   }
 
 
-  // return a editable object, use real position
+  // return a editable object
   DfObject& operator[](int index) {
-    return *(objects + index - lowRange);
+    return &objects[index];
   }
 
 public:
