@@ -532,6 +532,11 @@ public:
   
   DfProcess operator%(int num) const;
   DfProcess operator%(double num) const;
+
+  // also in Math.hpp
+  // DfProcess& DfSqrt(DfProcess)
+  // DfProcess& DfAvg(DfProcess)
+  // ...
 };
 
 
