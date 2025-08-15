@@ -100,11 +100,16 @@ class DfObject {
     data = src.data;
   }
 
+  void release() {
+    if (objType == DF_OBJTYPE_STRING && data.asString) {
+      free(data.asString);
+      data.asString = NULL;
+    }
+  }
+
 public:
   ~DfObject() {
-    if (objType == DF_OBJTYPE_STRING) {
-      free(data.asString);
-    }
+    release();
   }
 
   // create empty object
@@ -130,6 +135,11 @@ public:
     init(DF_OBJTYPE_STRING, false);
 
     extra = (int)strlen(str);
+    if (extra == 0) {
+      data.asString = NULL;
+      return;
+    }
+
     data.asString = (char*)malloc(extra + 1);
     strcpy(data.asString, str);
   }
@@ -281,7 +291,7 @@ public:
       return data.asBoolean ? "true" : "false";
     }
     if (objType == DF_OBJTYPE_STRING) {
-      return dfRepr(data.asString);
+      return data.asString ? data.asString : NULL;
     }
 
     std::string str(32, 0);
