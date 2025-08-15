@@ -1,9 +1,11 @@
-#include "Column.hpp"
+#define DF_DEBUG_LEVEL 4
+#include "Types/DataFrame.hpp"
 
 int main(int argc, char** argv) {
-    DfColumn numbers = {1, 2, 3, 4, 5};
-    DfColumn doubleNumbers = numbers * 3.5;
+    DfDataFrame df = {
+        {"id", {1, 2, 3}},
+        {"name", {"1", "2", "3"}}
+    };
 
-    doubleNumbers.print();
     printf("end\n");
 }

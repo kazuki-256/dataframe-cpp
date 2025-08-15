@@ -12,9 +12,7 @@
 
 typedef DfObject& (*DfRowGetByString)(void* userptr, const char* colName);
 typedef DfObject& (*DfRowGetByIndex)(void* userptr, int index);
-
 typedef int (*DfRowGetLength)(void* userptr);
-
 typedef void (*DfRowRelease)(void* userptr);
 
 
@@ -23,7 +21,10 @@ class DfProcess;
 
 
 
-class DfRow {
+
+// template for DfRow and DfConstRow
+class DfTempRow {
+protected:
   void* userptr;
 
   DfRowGetByString funcGetByString;
@@ -34,6 +35,23 @@ class DfRow {
   DfRowRelease funcRelease;
 
 
+  void setPtr(void* _userptr) {
+    userptr = _userptr;
+  }
+
+public:
+  ~DfTempRow() {
+    if (userptr) funcRelease(userptr);
+  }
+
+  int getLength() const {
+    return funcGetLength(userptr);
+  }
+};
+
+
+class DfRow : public DfTempRow {
+public:
   DfRow(void* _userptr,
         DfRowGetByString getByString,
         DfRowGetByIndex getByIndex,
@@ -47,15 +65,6 @@ class DfRow {
     funcRelease = release;
   }
 
-  void setPtr(void* _userptr) {
-    userptr = _userptr;
-  }
-
-public:
-  ~DfRow() {
-    if (userptr) funcRelease(userptr);
-  }
-
   DfObject& operator[](const char* colName) {
     return funcGetByString(userptr, colName);
   }
@@ -63,9 +72,30 @@ public:
   DfObject& operator[](int index) {
     return funcGetByIndex(userptr, index);
   }
+};
 
-  int getLength() const {
-    return funcGetLength(userptr);
+
+class DfConstRow : public DfTempRow {
+public:
+  DfConstRow(void* _userptr,
+        DfRowGetByString getByString,
+        DfRowGetByIndex getByIndex,
+        DfRowGetLength getLength,
+        DfRowRelease release)
+  {
+    userptr = _userptr;
+    funcGetByString = getByString;
+    funcGetByIndex = getByIndex;
+    funcGetLength = getLength;
+    funcRelease = release;
+  }
+
+  const DfObject& operator[](const char* colName) const {
+    return funcGetByString(userptr, colName);
+  }
+
+  const DfObject& operator[](int index) const {
+    return funcGetByIndex(userptr, index);
   }
 };
 
@@ -82,25 +112,68 @@ public:
 
   }
 
-  DfDataFrame(DfDataFrame& src) {
-    
-  }
+
 
   DfDataFrame(const std::initializer_list<std::pair<const char*, DfColumn>>& _columns) {
-    
+    DfDebug4("create DfDataFrame 1");
+
+    for (auto& pair : _columns) {
+      columns.insert(pair);
+    }
   }
 
   DfDataFrame(const std::initializer_list<std::string>& columnNames) {
+    DfDebug4("create DfDataFrame 2");
+
+    for (const std::string& name : columnNames) {
+      columns.insert({name, DfColumn()});
+    }
+  }
+
+
+  // == copy ==
+
+  DfDataFrame& operator=(DfDataFrame& src) {
+    if (!columns.empty()) {
+      columns.clear();
+    }
+
+    columns = src.columns;
+    return *this;
+  }
+
+  DfDataFrame(DfDataFrame& src) {
+    columns = src.columns;
+  }
+
+  // == move ==
+
+  DfDataFrame& operator=(DfDataFrame&& src) {
+    return *this;    
+  }
+
+  DfDataFrame(DfDataFrame&& src) {
     
   }
 
 
 
-  DfColumn& operator[](const char* name) {
+  // == get ==
 
+  DfColumn& operator[](const char* name) {
+    return columns[name];
   }
 
+  const DfColumn& operator[](const char* name) const {
+    return columns.at(name);
+  }
+
+
   DfRow& loc(int index) {
+    
+  }
+
+  DfRow& loc(int index) const {
     
   }
   

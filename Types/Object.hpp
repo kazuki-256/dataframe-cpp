@@ -83,17 +83,37 @@ class DfObject {
     null = _null;
   }
 
-  void copyFrom(const DfObject& src) {
+  inline void _move(DfObject& src) {
     init(src.objType, src.null);
 
     if (isNull()) {
+      data.asPointer = NULL;
+      src.data.asPointer = NULL;
+      return;
+    }
+
+    if (objType == DF_OBJTYPE_STRING) {
+      extra = src.extra;
+      data.asString = src.data.asString;
+      src.data.asString = NULL;
+      return;
+    }
+
+    data = src.data;
+  }
+
+  inline void _copy(const DfObject& src) {
+    init(src.objType, src.null);
+
+    if (isNull()) {
+      data.asPointer = NULL;
       return;
     }
 
     if (objType == DF_OBJTYPE_STRING) {
       extra = src.extra;
       data.asString = (char*)malloc(extra + 1);
-      strcpy(data.asString, src.data.asString);
+      strncpy(data.asString, src.data.asString, extra);
       return;
     }
 
@@ -132,6 +152,7 @@ public:
 
   // set string
   DfObject(const char* str) {
+    DfDebug1("create DfObject::String");
     init(DF_OBJTYPE_STRING, false);
 
     extra = (int)strlen(str);
@@ -158,6 +179,7 @@ public:
 
   // set number
   DfObject(int number) {
+    DfDebug1("create DfObject::Number %d", number);
     init(DF_OBJTYPE_NUMBER, false);
     data.asNumber = (double)number;
   }
@@ -240,35 +262,32 @@ public:
 
 
   
-  // move
+  // move1
   DfObject(DfObject&& src) {
-    init(src.objType, src.null);
-
-    if (isNull()) {
-      return;
-    }
-
-    if (objType == DF_OBJTYPE_STRING) {
-      extra = src.extra;
-      data.asString = src.data.asString;
-      src.data.asString = NULL;
-      return;
-    }
-
-    data = src.data;
-    return;
+    DfDebug1("DfObject::move1");
+    _move(src);
   }
-  
-  
+
+  // move2
+  DfObject& operator=(DfObject&& src) {
+    DfDebug1("DfObject::move2");
+    _move(src);
+    return *this;
+  }
+
 
   // copy1
   DfObject(const DfObject& src) {
-    copyFrom(src);
+    DfDebug1("DfObject::copy1");
+    _copy(src);
   }
 
   // copy2
   inline DfObject& operator=(const DfObject& src) {
-    copyFrom(src);
+    DfDebug1("DfObject::copy2");
+    release();
+    _copy(src);
+    DfDebug1("DfObject::copy2 success!");
     return *this;
   }
 
