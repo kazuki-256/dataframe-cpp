@@ -56,7 +56,12 @@ typedef enum DfType {
 
 
 
+class DfObjectChunk;
+
+
 class DfObject {
+  friend class DfObjectChunk;
+
   union U{
     void* asPointer;
     bool asBoolean;
