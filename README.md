@@ -10,9 +10,10 @@ last update: 2025/08/14
 ## Features
 
 1. read/write data frame from/to .csv, .xlsx, .html, .db
-3. vector operation
-4. SQL execution
-5. OpenCV::RandomForest
+2. vector operation
+3. SQL execution
+4. OpenCV::RandomForest
+5. SocketSQL to host SQL server
 
 ## depends
 
@@ -192,10 +193,48 @@ a virtual data frame to execute sql command or vector process, its data could co
 
 Sample
 ```cpp
-DfDataFrame df = DfReadCsv("data.csv");
+DfDataFrame staffs = DfReadCsv("staffs.csv");
+DfDataFrame jobs = DfReadCsv("jobs.csv");
 
-// way1
-DfProcess process = df.
+// == sample1 ==
+DfProcess process1 = staffs.as("staff")
+    .select("staff.id, staff.name, job.title, job.hourly, salary")
+    .join(jobs, "job", "job.id = staff.jobId")
+    .mutate("staff.worked * job.hourly", "salary")
+    .where("salary > 6000");
+
+process1.print();    // not preferred because no actually data stored
+
+// Outputs:
+// staff.id staff.name job.title job.hourly salary
+// ...
+
+
+// == sample2 ==
+DfProcess process2 = process1["salary"] * 12;
+
+
+process2.print();
+
+// Outputs:
+// salary
+// .
+// .
+// .
+
+
+
+// == outputs ==
+
+DfDataFrame output1 = process1;
+DfColumn output1Salary = process["salary"];
+
+if (process.getColumnCount() == 1) {
+    DfColumn output2Yearly = process2;  // only for one column output
+}
+DfDataFrame output2 = process2;
+
+
 ```
 
 
