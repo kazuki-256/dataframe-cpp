@@ -19,22 +19,24 @@
 
 
 class df_process;
-template<typename T> class df_column;
+template<typename object_t> class df_column;
 
 
 
-template<typename T>
+// ==== df_object_chunk ====
+
+template<typename object_t>
 class df_object_chunk : TLinkable {
-  friend class df_column<T>;
+  template<typename T> friend class df_column;
 
-  df_object<T>* objects;
+  df_object<object_t>* objects;
   int usage;
   int capacity;
 
 
   inline void init(int _capacity) {
     capacity = _capacity * DF_CHUNK_GROWTH_FACTOR;
-    objects = (df_object<T>*)calloc(capacity, sizeof(df_object<T>));
+    objects = (df_object<object_t>*)calloc(capacity, sizeof(df_object<object_t>));
     usage = 0;
   }
 
@@ -47,7 +49,7 @@ class df_object_chunk : TLinkable {
 
 
   // copy for other array
-  void fill(int start, const df_object<T>* source_objects, int length) {
+  void fill(int start, const df_object<object_t>* source_objects, int length) {
     df_debug2("fill1 from %p to %p (length: %d, current: %d, capacity: %d)",
         source_objects, objects, length, usage, capacity);
 
@@ -63,11 +65,11 @@ class df_object_chunk : TLinkable {
     usage = MAX(usage, start + length);
   }
 
-  void fill(int start, const std::initializer_list<df_object<T>>& source_objects) {
+  void fill(int start, const std::initializer_list<df_object<object_t>>& source_objects) {
     df_debug2("fill1 from %p to %p (length: %d, current: %d, capacity: %d)",
         source_objects, objects, source_objects.size(), usage, capacity);
 
-    for (const df_object<T>& object : source_objects) {
+    for (const df_object<object_t>& object : source_objects) {
       df_debug2("debug: %s", object.c_str());
       objects[start++].from_copy(object);
     }
@@ -76,7 +78,7 @@ class df_object_chunk : TLinkable {
   }
 
   inline void release_objects_only() {
-    for (df_object<T>* ptr = objects, *END = objects + usage; ptr < END; ptr++) {
+    for (df_object<object_t>* ptr = objects, *END = objects + usage; ptr < END; ptr++) {
       ptr->release();
     }
   }
@@ -149,7 +151,7 @@ public:
     }
     
     capacity = other.usage * DF_CHUNK_GROWTH_FACTOR;
-    objects = (df_object<T>*)calloc(capacity, sizeof(df_object<T>));
+    objects = (df_object<object_t>*)calloc(capacity, sizeof(df_object<object_t>));
 
   label_fill:
 
@@ -161,17 +163,24 @@ public:
 
 
 
-template<typename T = DF_DEFAULT_TYPE>
+
+
+
+// ==== df_column ==
+
+template<typename object_t = DF_DEFAULT_TYPE>
 class df_column {
-  TLinkableList<df_object_chunk<T>> chunks;
+  template<typename T> friend class df_column;
+
+  TLinkableList<df_object_chunk<object_t>> chunks;
   int length;
   uint8_t type;
 
-  std::set<df_column<T>*> be_foregined;  // SQL foregined by who (not usable)
-  df_column<T>* foregin_to = NULL;       // SQL foregin key (not usable)
+  std::set<df_column<object_t>*> be_foregined;  // SQL foregined by who (not usable)
+  df_column<object_t>* foregin_to = NULL;       // SQL foregin key (not usable)
 
   
-  df_object<T>& get_object_at(int index) const {
+  df_object<object_t>& get_object_at(int index) const {
     // -- negivate find --
     if (index < 0) {
       index = -index;
@@ -180,11 +189,13 @@ class df_column {
         throw df_exception_out_of_index();
       }
 
-      for (auto iter = chunks.rbegin(); iter != chunks.rend(); iter++) {
-        if (index <= iter->usage) {
-          return iter->objects[iter->usage - index];
+      for (TLinkable* iter = chunks.tlBack(); iter != NULL; iter = iter->tlPrev()) {
+        df_object_chunk<object_t>* chunk = (df_object_chunk<object_t>*)iter;
+
+        if (index <= chunk->usage) {
+          return chunk->objects[chunk->usage - index];
         }
-        index -= iter->usage;
+        index -= chunk->usage;
       }
       throw df_exception("chunk didn't seted");
     }
@@ -194,34 +205,65 @@ class df_column {
       throw df_exception_out_of_index();
     }
 
-    for (const df_object_chunk<T>& chunk : chunks) {
-      if (index < chunk.usage) {
-        return chunk.objects[index];
+    for (const df_object_chunk<object_t>* chunk : chunks) {
+      if (index < chunk->usage) {
+        return chunk->objects[index];
       }
-      index -= chunk.usage;
+      index -= chunk->usage;
     }
     throw df_exception("chunk didn't seted");
   }
 
-  df_object_chunk<T>* extend_chunk(int size, int* lessing_size = DF_DEFAULT_RETURN_POINTER) {
+  df_object_chunk<object_t>* extend_chunk(int size, int* lessing_size = DF_DEFAULT_RETURN_POINTER) {
     // == way 1: use currently chunk ==
-    if (chunks.tlFront()) {
-      chunks.tlAdd(new df_object_chunk<T>((length + size) * DF_CHUNK_GROWTH_FACTOR));
+    if (!chunks.tlFront()) {
+      chunks.tlAdd(new df_object_chunk<object_t>((length + size) * DF_CHUNK_GROWTH_FACTOR));
       *lessing_size = size;
       return chunks.tlBack();
     }
 
     // == way 2: use currently + new chunk ==
-    df_object_chunk<T>& last = *chunks.tlBack();
+    df_object_chunk<object_t>& last = *chunks.tlBack();
 
     int request = last.usage + size;
     if (request >= last.capacity) {
-      chunks.tlAdd(new df_object_chunk<T>(length + request - last.capacity));
+      chunks.tlAdd(new df_object_chunk<object_t>(length + request - last.capacity));
     }
 
     *lessing_size = MIN(size, last.capacity - last.usage);
     return &last;
   }
+
+
+  template<typename T>
+  void typed_merge(const df_column<T>& other) {
+    df_column<T>& casted = *this;
+
+    // sure memory
+    int lessing_size;
+    df_object_chunk<T>* chunk = casted.extend_chunk(other.length, &lessing_size);
+
+    // write chunk[-2] or chunk[-1]
+    df_debug3("typed_merge usage=%d lessing=%d src=%d", chunk->usage, lessing_size, other.length);
+
+    auto iter = other.begin();
+    for (const int END = chunk->usage + lessing_size; chunk->usage < END; ) {
+      chunk->objects[chunk->usage++] = *iter;
+      iter++;
+    }
+
+    // write chunk[-1]
+    if (other.length > lessing_size) {
+      chunk = casted.chunks.tlBack();
+      
+      for (; iter != other.end(); iter++) {
+        chunk->objects[chunk->usage++] = *iter;
+      }
+    }
+    casted.length += other.length;
+  }
+
+
 
 public:
 
@@ -234,22 +276,27 @@ public:
     if (foregin_to) {
       foregin_to->be_foregined.erase(this);
     }
+
+    if (type == DF_TYPE_STRING) {
+      TLinkableList<df_object_chunk<df_string>>* casted = (TLinkableList<df_object_chunk<df_string>>*)&chunks;
+      casted->tlClear();
+    }
   }
 
 
 
-  df_column(const std::initializer_list<df_object<T>>& objects) {
+  df_column(const std::initializer_list<df_object<object_t>>& objects) {
     df_debug3("create df_column1: %p", this);
 
-    type = df_get_type_v<T>;
+    type = df_get_type_v<object_t>;
     length = objects.size();
 
     if (length == 0) {
       return;
     }
 
-    chunks.tlAdd(new df_object_chunk<T>(length));
-    df_object_chunk<T>& chunk = *chunks.tlBack();
+    chunks.tlAdd(new df_object_chunk<object_t>(length));
+    df_object_chunk<object_t>& chunk = *chunks.tlBack();
 
     chunk.fill(0, objects);
   }
@@ -258,11 +305,23 @@ public:
   df_column(int capacity = 0) {
     df_debug3("create df_column2");
 
-    type = df_get_type_v<T>;
+    type = df_get_type_v<object_t>;
     length = 0;
 
     if (capacity) {
-      chunks.tlAdd(new df_object_chunk<T>(capacity));
+      chunks.tlAdd(new df_object_chunk<object_t>(capacity));
+    }
+  }
+
+    // advaned constructor
+  df_column(df_type objtype, int capacity = 0) {
+    df_debug3("create df_column3");
+
+    type = objtype;
+    length = 0;
+
+    if (capacity) {
+      chunks.tlAdd(new df_object_chunk<object_t>(capacity));
     }
   }
 
@@ -287,28 +346,28 @@ public:
   // === iterator ===
 
   class iterator {
-    df_object_chunk<T>* chunk;
+    df_object_chunk<object_t>* chunk;
     int index;
 
     inline iterator& next() {
       index++;
       if (index >= chunk->usage) {
         df_debug3("%d", index);
-        chunk = (df_object_chunk<T>*)chunk->tlNext();
+        chunk = (df_object_chunk<object_t>*)chunk->tlNext();
         index = 0;
       }
       return *this;
     }
 
   public:
-    iterator(df_object_chunk<T>* _chunk) {
+    iterator(df_object_chunk<object_t>* _chunk) {
       chunk = _chunk;
       index = 0;
     }
 
 
 
-    inline df_object<T>& operator*() {
+    inline df_object<object_t>& operator*() {
       df_debug3("test %d", index);
       return chunk->objects[index];
     }
@@ -328,34 +387,37 @@ public:
   };
 
   class const_iterator {
-    df_object_chunk<T>* chunk;
-    int index;
+    df_object_chunk<object_t>* chunk = NULL;
+    int index = 0;
 
     inline const_iterator& next() {
       index++;
       if (index >= chunk->usage) {
         df_debug3("%d", index);
-        chunk = (df_object_chunk<T>*)chunk->tlNext();
+        chunk = (df_object_chunk<object_t>*)chunk->tlNext();
         index = 0;
       }
       return *this;
     }
 
   public:
-    const_iterator(df_object_chunk<T>* _chunk) {
+    const_iterator(df_object_chunk<object_t>* _chunk) {
       chunk = _chunk;
+      index = 0;
+    }
+
+    const_iterator() {
+      chunk = NULL;
       index = 0;
     }
 
 
 
-    inline const df_object<T>& operator*() {
-      df_debug3("test %d", index);
+    inline const df_object<object_t>& operator*() {
       return chunk->objects[index];
     }
 
     inline bool operator!=(const const_iterator& other) {
-      df_debug3("check");
       return chunk != NULL;
     }
 
@@ -397,6 +459,8 @@ public:
 
   df_column(df_column&& src) {
     df_debug3("df_column move1 %p -> %p\n", src, this);
+
+
     chunks = std::move(src.chunks);
 
     length = src.length;
@@ -442,10 +506,18 @@ public:
   }
 
 
-  // == convert ==
-  operator df_column<void*>&() {
-    return *(df_column<void*>*)this;
+  // == cast ==
+
+  template<typename Dest>
+  operator df_column<Dest>&() {
+    return *(df_column<Dest>*)this;
   }
+
+  template<typename Dest>
+  operator const df_column<Dest>&() const {
+    return *(const df_column<Dest>*)this;
+  }
+
 
 
   // == set_foregin ==
@@ -459,32 +531,32 @@ public:
 
   // == add_object ==
 
-  df_column& add_object(const df_object<T>& object) {
-    df_object_chunk<T>& chunk = extend_chunk(1);
+  df_column& add_object(const df_object<object_t>& object) {
+    df_object_chunk<object_t>& chunk = extend_chunk(1);
     chunk.objects[chunk.usage++] = object;
     length++;
     return *this;
   }
 
-  df_column& add_object(df_object<T>&& object) {
-    df_object_chunk<T>& chunk = extend_chunk(1);
+  df_column& add_object(df_object<object_t>&& object) {
+    df_object_chunk<object_t>& chunk = extend_chunk(1);
     chunk.objects[chunk.usage++] = std::move(object);
     length++;
     return *this;
   }
 
 
-  // == getObject ==
+  // == get_object ==
 
-  inline const df_object<T>& operator[](int index) const {
+  inline const df_object<object_t>& operator[](int index) const {
     return get_object_at(index);
   }
 
-  inline df_object<T>& operator[](int index) {
+  inline df_object<object_t>& operator[](int index) {
     if (index >= length) {
-      df_object_chunk<T>& chunk = extend_chunk(1);
+      df_object_chunk<object_t>* chunk = extend_chunk(1);
       
-      return chunk.objects[chunk.usage++];
+      return chunk->objects[chunk->usage++];
     }
     return get_object_at(index);
   }
@@ -493,45 +565,41 @@ public:
 
   // == merge ==
 
-  df_column& merge_with(const df_column& other) {
-    chunks.tlAdd(new df_object_chunk<T>(length));
-    length += other.length;
-
-    // sure memory
-    int lessing_size;
-    df_object_chunk<T>* chunk = extend_chunk(other.length, &lessing_size);
-
-    // write chunk[-2] or chunk[-1]
-    df_debug3("debug %d %d %d", chunk->usage, lessing_size, other.length);
-
-    const_iterator iter = other.begin();
-    for (const int END = chunk->usage + lessing_size; chunk->usage < END; ) {
-      chunk->objects[chunk->usage++] = *iter;
-      iter++;
+  template<typename other_t>
+  df_column<object_t>& merge_with(const df_column<other_t>& other) {
+    if (type != other.type) {
+      throw df_exception("couldn't merge column since they are different types!");
     }
 
-    // write chunk[-1]
-    if (other.length > lessing_size) {
-      chunk = chunks.tlBack();
-      
-      for (; iter != other.end(); iter++) {
-        chunk->objects[chunk->usage++] = *iter;
-      }
+    switch (type) {
+      case DF_TYPE_STRING:
+        df_debug3("merge df_column<df_string>");
+        typed_merge<df_string>(other);
+        break;
+      default:
+        df_debug3("merge df_column<df_undefined> %d", type);
+        typed_merge<df_undefined>(other);
+        break;
     }
-    
     return *this;
   }
 
-  df_column merge_to(const df_column<T>& other) const {
-    df_column new_column(get_type(), length + other.length);
-
-    df_object_chunk<T>& last = new_column.chunks.back();
-
-    for (df_object<T>& object : *this) {
-      last.objects[new_column.length++] = object;
+  template<typename other_t>
+  df_column<object_t> merge_to(const df_column<other_t>& other) const {
+    if (type != other.type) {
+      throw df_exception("couldn't merge column since they are different types!");
     }
-    for (df_object<T>& object : other) {
-      last.objects[new_column.length++] = object;
+
+    df_column<object_t> new_column(get_type(), length + other.length);
+
+
+    switch (type) {
+      case DF_TYPE_STRING:
+        typed_merge<df_string>(other);
+        break;
+      default:
+        typed_merge<df_undefined>(other);
+        break;
     }
     return new_column;
   }
@@ -540,13 +608,20 @@ public:
 
   // == print ==
 
-  void print(FILE* fp = stdout) const {
-    fputs("x\n", fp);
-    for (const df_object<T>& object : *this) {
-      fputs(object.c_str(), fp);
-      fputc('\n', fp);
+  std::ostream& write_stream(std::ostream& os, const char* colname) const {
+    os << "| " << colname << " |\n|";
+
+    for (const df_object<object_t>& object : *this) {
+      os << object.c_str(type) << " |\n";
     }
+    return os;
   }
+
+  friend std::ostream& operator<<(std::ostream& os, const df_column<object_t>& col) {
+    col.write_stream(os, "x");
+    return os;
+  }
+
 
 
 
@@ -558,19 +633,19 @@ public:
   // == vector ==
 
   df_process operator+(int num) const;
-  df_process operator+(double num) const;
+  df_process operator+(df_number num) const;
 
   df_process operator-(int num) const;
-  df_process operator-(double num) const;
+  df_process operator-(df_number num) const;
 
   df_process operator*(int num) const;
-  df_process operator*(double num) const;
+  df_process operator*(df_number num) const;
   
   df_process operator/(int num) const;
-  df_process operator/(double num) const;
+  df_process operator/(df_number num) const;
   
   df_process operator%(int num) const;
-  df_process operator%(double num) const;
+  df_process operator%(df_number num) const;
 
   // also in Math.hpp
   // df_process& DfSqrt(df_process)

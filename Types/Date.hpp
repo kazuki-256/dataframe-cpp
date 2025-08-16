@@ -188,6 +188,8 @@ size_t df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
 
 
 
+
+
 class df_date {
   time_t t;
   static char STATIC_BUFFER[128];
@@ -196,7 +198,7 @@ public:
     static const char* default_format;
 
 
-    df_date(time_t _t) { t = _t; }
+    df_date(time_t _t = DF_NULL_DATE) { t = _t; }
 
     df_date(const char* strdate, const char* fmt = default_format) {
         struct tm tm{};

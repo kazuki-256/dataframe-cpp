@@ -19,41 +19,41 @@
 
 #if DF_DEBUG_LEVEL <= 1
 // DfObject level debug
-#define df_debug1(fmt, ...) fprintf(stderr, "debug %s-%d: " fmt "\n", __FILE__, __LINE__ ,##__VA_ARGS__);
+#define df_debug1(fmt, ...) fprintf(stderr, "debug1 %s-%d: " fmt "\n", __FILE__, __LINE__ ,##__VA_ARGS__);
 #else
 #define df_debug1(...)
 #endif
 
 #if DF_DEBUG_LEVEL <= 2
 // DfObjectChunk level debug
-#define df_debug2(fmt, ...) fprintf(stderr, "debug %s-%d: " fmt "\n", __FILE__, __LINE__ ,##__VA_ARGS__);
+#define df_debug2(fmt, ...) fprintf(stderr, "debug2 %s-%d: " fmt "\n", __FILE__, __LINE__ ,##__VA_ARGS__);
 #else
 #define df_debug2(...)
 #endif
 
 #if DF_DEBUG_LEVEL <= 3
 // DfColumn level debug
-#define df_debug3(fmt, ...) fprintf(stderr, "debug %s-%d: " fmt "\n", __FILE__, __LINE__ ,##__VA_ARGS__);
+#define df_debug3(fmt, ...) fprintf(stderr, "debug3 %s-%d: " fmt "\n", __FILE__, __LINE__ ,##__VA_ARGS__);
 #else
 #define df_debug3(...)
 #endif
 
 #if DF_DEBUG_LEVEL <= 4
 // DfDataFrame level debug
-#define df_debug4(fmt, ...) fprintf(stderr, "debug %s-%d: " fmt "\n", __FILE__, __LINE__ ,##__VA_ARGS__);
+#define df_debug4(fmt, ...) fprintf(stderr, "debug4 %s-%d: " fmt "\n", __FILE__, __LINE__ ,##__VA_ARGS__);
 #else
 #define df_debug4(...)
 #endif
 
 #if DF_DEBUG_LEVEL <= 5
 // DfProcess level debug
-#define df_debug5(fmt, ...) fprintf(stderr, "debug %s-%d: " fmt "\n", __FILE__, __LINE__ ,##__VA_ARGS__);
+#define df_debug5(fmt, ...) fprintf(stderr, "debug5 %s-%d: " fmt "\n", __FILE__, __LINE__ ,##__VA_ARGS__);
 #else
 #define df_debug5(...)
 #endif
 
 #if DF_DEBUG_LEVEL <= 6
-#define df_debug6(fmt, ...) fprintf(stderr, "debug %s-%d: " fmt "\n", __FILE__, __LINE__ ,##__VA_ARGS__);
+#define df_debug6(fmt, ...) fprintf(stderr, "debug6 %s-%d: " fmt "\n", __FILE__, __LINE__ ,##__VA_ARGS__);
 #else
 #define df_debug6(...)
 #endif

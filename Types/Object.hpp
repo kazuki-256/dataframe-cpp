@@ -21,36 +21,39 @@
 
 
 
+// ==== types of object ==
+
+typedef void* df_undefined;
+
 typedef std::string df_string;
+typedef void* df_pointer;
+typedef double df_number;
+typedef bool df_boolean;
 
 
 
-df_string df_repr(const df_string& s) {
-  df_string out = "\"";
-  for (char c : s) {
-    switch (c) {
-      case '\n': out += "\\n"; break;
-      case '\t': out += "\\t"; break;
-      case '\r': out += "\\r"; break;
-      case '\"': out += "\\\""; break;
-      case '\\': out += "\\\\"; break;
-      default:
-        if (isprint(c)) {
-          out += c;
-        }
 
-        char buf[5];
-        snprintf(buf, 5, "\\x%02x", c);
-        out += buf;
-    }
+class df_category {
+  template<typename T> friend class df_object;
+  friend class df_column<df_category>;
+  friend class df_column<df_string>;
+
+  int category;
+
+public:
+  df_category() = delete;
+
+  bool operator==(const df_category& other) const {
+    return category == other.category;
   }
-  out += "\"";
-  return out;
-}
+  bool operator!=(const df_category& other) const {
+    return category == other.category;
+  }
+};
 
 
 
-
+// ==== types of enum ====
 
 typedef enum df_type {
   DF_TYPE_POINTER,
@@ -64,49 +67,28 @@ typedef enum df_type {
 
 
 
-
 template<typename T>
 struct df_get_type {
-    static constexpr int value =
+    static constexpr df_type value =
       std::is_pointer_v<T> ? DF_TYPE_POINTER
-      : std::is_same_v<T, bool> ? DF_TYPE_BOOLEAN
+      : std::is_same_v<T, df_boolean> ? DF_TYPE_BOOLEAN
       : std::is_same_v<T, df_string> ? DF_TYPE_STRING
       : std::is_same_v<T, df_date> ? DF_TYPE_DATE
+      : std::is_same_v<T, df_category> ? DF_TYPE_CATEGORY
       : DF_TYPE_NUMBER;
 };
 
 template<typename T>
-inline constexpr bool df_get_type_v = df_get_type<T>::value;
-
-
-
-// template<typename T>
-// df_type df_get_type() {
-//   if constexpr (std::is_pointer_v<T>) {
-//     return DF_TYPE_POINTER;
-//   }
-//   if constexpr (std::is_same_v<T, bool>) {
-//     return DF_TYPE_BOOLEAN;
-//   }
-//   if constexpr (std::is_same_v<T, df_string>) {
-//     return DF_TYPE_STRING;
-//   }
-//   if constexpr (std::is_same_v<T, df_date>) {
-//     return DF_TYPE_DATE;
-//   }
-//   return DF_TYPE_CATEGORY;
-// }
+inline constexpr df_type df_get_type_v = df_get_type<T>::value;
 
 
 
 
-
-template<typename T> class df_object_chunk;
 
 
 template<typename T = DF_DEFAULT_TYPE>
 class df_object {
-  static_assert(sizeof(T) <= 8, "T size could not over 8 bytes!");
+  static_assert(sizeof(T) <= 8 || std::is_same_v<df_string, T>, "T size could not over 8 bytes!");
   static_assert(!std::is_const_v<T>, "not allowed to use const value");
 
   friend class df_object_chunk<T>;
@@ -117,11 +99,11 @@ class df_object {
 
 
   union U {
-    void* as_pointer;
-
-    double as_number;
-    df_string* as_string;
-    df_date as_date;
+    df_pointer    as_pointer;
+    df_number     as_number;
+    df_string*    as_string;
+    df_date       as_date;
+    df_category   as_category;
 
     ~U() {}
     U() {}
@@ -131,24 +113,10 @@ class df_object {
 
   inline void release() {
     if constexpr (std::is_same_v<T, df_string>) {
-      delete data.as_string;
+      if (data.as_string) {
+        delete data.as_string;
+      }
     }
-  }
-
-  inline void from_string(const char* src) {
-    if constexpr (std::is_pointer_v<T>) {
-      data.as_pointer = (void*)src;
-      return;
-    }
-    if constexpr (std::is_same_v<T, df_string>) {
-      data.as_string = new df_string(src);
-      return;
-    }
-    if constexpr (std::is_same_v<T, df_date>) {
-      data.as_date = df_date(src);
-      return;
-    }
-    throw df_exception("only STRING or DATE can use df_object(const char*)");
   }
 
 
@@ -165,7 +133,7 @@ class df_object {
   inline void from_copy(const df_object& src) {
     // string
     if constexpr (std::is_same_v<T, df_string>) {
-      data.as_string = new std::string(*src.data.as_string);
+      data.as_string = src.data.as_string ? new df_string(*src.data.as_string) : NULL;
       return;
     }
     // normal
@@ -182,37 +150,57 @@ public:
   // == create ==
 
   inline df_object(const T& src) {
-    if constexpr (std::is_same_v<T, df_string>) {
-      data.as_string = new df_string(src);
-      return;
-    }
+    df_debug1("create1 df_object (%d)", df_get_type_v<T>);
+
     if constexpr (std::is_pointer_v<T>) {
       data.as_pointer = src;
       return;
     }
-    data.as_number = (double)src;
+    if constexpr (std::is_same_v<T, df_string>) {
+      data.as_string = src ? new df_string(src) : NULL;
+      return;
+    }
+    if constexpr (std::is_same_v<T, df_date>) {
+      data.as_date = src;
+      return;
+    }
+    data.as_number = (df_number)src;
   }
+  
+  inline df_object(const char* src) {
+    if constexpr (std::is_pointer_v<T>) {
+      data.as_pointer = (void*)src;
+      return;
+    }
+    if constexpr (std::is_same_v<T, df_string>) {
+      data.as_string = src ? new df_string(src) : NULL;
+      return;
+    }
+    if constexpr (std::is_same_v<T, df_date>) {
+      data.as_date = df_date(src);
+      return;
+    }
 
+    // == number ==
+    if (src == NULL) {
+      data.as_number = DF_NULL_NUMBER;
+      return;
+    }
 
-
-  // == from string ==
-
-  inline df_object(const char* src) noexcept(false) {
-    from_string(src);
-  }
-
-
-  inline df_object& operator=(const char* src) {
-    release();
-    from_string(src);
-    return *this;
+    sscanf(src, "%lf", &data.as_number);
   }
 
 
   // is null?
-  inline bool isNull() {
+  inline df_boolean is_null() const {
     if constexpr (std::is_same_v<T, df_string> || std::is_pointer_v<T>) {
-      return data.as_pointer == NULL;
+      return data.as_pointer == DF_NULL_POINTER;
+    }
+    if constexpr (std::is_same_v<T, df_date>) {
+      return data.as_date == DF_NULL_DATE;
+    }
+    if constexpr (std::is_same_v<T, df_category>) {
+      return data.as_date == DF_NULL_CATEGORY;
     }
     return isnan(data.as_number);
   }
@@ -240,7 +228,7 @@ public:
   inline df_object& operator=(const T& src) {
     if constexpr (std::is_same_v<T, df_string>) {
       release();
-      data.as_string = new std::string(src);
+      data.as_string = src ? new df_string(src) : NULL;
       return *this;
     }
     data = src;
@@ -252,28 +240,12 @@ public:
   // == move ==
 
   inline df_object(df_object&& src) {
-    if constexpr (std::is_pointer_v<T>) {
-      data.as_pointer = src.data.as_pointer;
-      src.data.as_pointer = NULL;
-      return;
-    }
-    data = src.data;
+    from_move(src);
   }
 
   inline df_object& operator=(df_object&& src) {
-    if constexpr (std::is_pointer_v<T>) {
-      data.as_pointer = src.data.as_pointer;
-      src.data.as_pointer = NULL;
-      return *this;
-    }
-    if constexpr (std::is_same_v<T, df_string>) {
-      release();
-      data.as_string = new std::string(*src.data.as_string);
-      data.as_string = src.data.as_string;
-      src.data.as_string = NULL;
-      return *this;
-    }
-    data = src.data;
+    release();
+    from_move(src);
     return *this;
   }
 
@@ -281,13 +253,13 @@ public:
   // == copy ==
 
   inline df_object(const df_object& src) {
+    df_debug1("copy1 df_object (%d)", df_get_type_v<T>);
     from_copy(src);
   }
 
   inline df_object& operator=(const df_object& src) {
-    if constexpr (std::is_same_v<T, df_string>) {
-      release();
-    }
+    df_debug1("copy2 df_object (%d)", df_get_type_v<T>);
+    release();
     from_copy(src);
     return *this;
   }
@@ -295,32 +267,32 @@ public:
 
   // == c_str() ==
 
-  inline const char* c_str(char* buffer = STATIC_BUFFER, const char* fmtFloat = "%g") const {
-    // pointer
-    if constexpr (std::is_pointer_v<T>) {
-      snprintf(buffer, STATIC_BUFFER_LENGTH - 1, "%p", data.as_pointer);
-      return buffer;
+  inline const char* c_str(int type = df_get_type_v<T>, const char* fmtFloat = DF_DEFAULT_FLOAT_FORMAT, char* buffer = DF_STATIC_BUFFER) const {
+    if (is_null()) {
+      return "null";
     }
-    // boolean
-    if constexpr (std::is_same_v<T, bool>) {
-      return data.as_number ? "true" : "false";
+
+    switch (type) {
+      case DF_TYPE_POINTER:
+        snprintf(buffer, DF_STATIC_BUFFER_LENGTH, "%p", data.as_pointer);
+        return buffer;
+      case DF_TYPE_BOOLEAN:
+        return data.as_number ? "true" : "false";
+      case DF_TYPE_STRING:
+        return data.as_string->c_str();
+      case DF_TYPE_NUMBER:
+        snprintf(buffer, DF_STATIC_BUFFER_LENGTH, fmtFloat, data.as_number);
+        return buffer;
+      case DF_TYPE_DATE:
+        return data.as_date.c_str();
+      case DF_TYPE_CATEGORY:
+        snprintf(buffer, DF_STATIC_BUFFER_LENGTH, "category(%ld)", data.as_category.category);
+        return buffer;
+      default:
+        return "unknown-type";
     }
-    // string
-    if constexpr (std::is_same_v<T, df_string>) {
-      return data.as_string->c_str();
-    }
-    // date
-    if constexpr (std::is_same_v<T, df_date>) {
-      return data.as_date.toString();
-    }
-    // number
-    snprintf(buffer, STATIC_BUFFER_LENGTH - 1, fmtFloat, data.as_number);
-    return buffer;
   }
 };
-
-
-template<typename T> char df_object<T>::STATIC_BUFFER[df_object<T>::STATIC_BUFFER_LENGTH];
 
 
 

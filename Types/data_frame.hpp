@@ -148,33 +148,81 @@ public:
 
   // == move ==
 
-  df_data_frame& operator=(df_data_frame&& src) {
-    return *this;    
-  }
-
   df_data_frame(df_data_frame&& src) {
     
+  }
+
+  df_data_frame& operator=(df_data_frame&& src) {
+    return *this;    
   }
 
 
 
   // == get ==
 
-  df_column<void*>& operator[](const char* name) {
+  int get_column_count() const {
+    return columns.size();
+  }
+
+  int get_row_count() const {
+    return (*columns.begin()).second.get_length();
+  }
+  
+
+
+  df_column<df_undefined>& operator[](const char* name) {
     return columns[name];
   }
 
-  const df_column<void*>& operator[](const char* name) const {
+  const df_column<df_undefined>& operator[](const char* name) const {
     return columns.at(name);
   }
 
 
-  df_row& loc(int index) {
-    
+  df_row& loc(int index);
+
+  df_row& loc(int index) const;
+
+
+
+  // == print ==
+
+
+  std::ostream& write_stream(std::ostream& os) const {
+    int column_count = get_column_count();
+    int row_count = get_row_count();
+
+    std::vector<int> types(column_count);
+    std::vector<df_column<void*>::const_iterator> iters(column_count);
+
+    os << "| ";
+    int index = 0;
+    for (auto& named_column : columns) {
+      os << named_column.first << " | ";
+      
+      types[index] = named_column.second.get_type();
+      iters[index] = named_column.second.begin();
+      index++;
+    }
+    os << "\n";
+
+    // printf("row_count: %d\n", row_count);
+    for (int row = 0; row < row_count; row++) {
+      os << "| ";
+      for (int column = 0; column < column_count; column++) {
+        auto& iter = iters[column];
+
+        os << (*iter).c_str(types[column]) << " | ";
+        iter++;
+      }
+      os << "\n";
+    }
+    return os;
   }
 
-  df_row& loc(int index) const {
-    
+  friend std::ostream& operator<<(std::ostream& os, const df_data_frame& df) {
+    df.write_stream(os);
+    return os;
   }
   
 
@@ -189,28 +237,24 @@ public:
 
   df_process order_by(const char* sql) const;
 
-  df_process with(df_data_frame& other, const char* asName) const;
+  df_process with(df_data_frame& other, const char* as_name) const;
 };
 
 
 
 
 
-df_data_frame DfReadCsv(const char* csvFile) {
+df_data_frame df_read_csv(const char* csv_file);
 
-}
+df_data_frame df_read_excel(const char* excel_file);
 
-df_data_frame DfReadExcel(const char* excelFile) {
+df_data_frame df_read_html(const char* html_file);
 
-}
+df_data_frame df_read_xml(const char* xml_file);
 
-df_data_frame DfReadXml(const char* xmlFile) {
+df_data_frame df_read_db();
 
-}
 
-df_data_frame DfReadSqlite() {
-  
-}
 
 #ifdef _MYHTML2_H_
 
