@@ -1,10 +1,102 @@
-# My Data Frame (beta 1.0.0)
+# data_frame_cpp (beta 1.0.0)
+
+## info
+
+| programmer   | ふうき255          |
+|:-------------|:-------------------|
+| version      | beta 1.0.0         |
+| last update  | 2025/08/14         |
+| state        | under development  |
+
 
 ## init
 
-version: beta 1.0.0
-programmer: ふうき255
-last update: 2025/08/14
+This data frame API is for data science in c++, target at readable, high performance and multi-functions.
+
+The API will store the data handles steps to df_process and execute data processs when df_process convert to iterator, df_column or df_data_frame. it would support sql commands, vector operation and data science method (min(), max(), median(), etc)
+
+Currently, this API stills in making the df_data_frame object, but the main.cpp shows over my excepted cleanly. 
+
+
+## Sample
+
+**excepted**
+
+```cpp
+#include "data_frame/data_frame.hpp"
+
+using namespace std;
+
+int main(int argc, char** argv) {
+  // == read data ==
+  df_data_frame staff = df_read_csv("staffs.csv");
+  df_data_frame job = df_read_csv("job.csv");
+
+  // == data processing ==
+
+  df_data_frame df1 = staff.as("staff")      // before to write SQL, you can give your table a name, or start without name (column name only)
+            .select("staff.id, staff.name, job.title, job.hourly * staff.worked AS salary")    // select data, just like SQL
+            .join(job, "job", "staff.job_id = job.id")      // join other table as "job" by same job id
+            .where("salary > 100000")                       // filter
+            .order_by("salary", -1);                        // sort the output by desc 
+
+  df_data_frame df2 = staff.as("staff")
+            .select("job.job_title, AVG(staff.worked * job.hourly), count")
+            .join(job, "job", "staff.job_id == job.id")
+            .group_by("job.title")                             // group by job.title
+            .mutate("COUNT(*) AS count");                      // also, you can define variables by mutate
+
+  // == vector processing ==
+  df_column yearly = df1["salary"] * 12;
+  df_column staff_worked = df1["salary"] / df1["job.hourly"];
+
+  // == print ==
+  df1.print();
+  df2.print();
+
+  // == output ==
+  df_write_csv(df1, "staff_salary.csv");
+  df_write_db(df2, "job_info.csv");
+
+  return 0;
+}
+```
+
+
+**currently**
+
+```cpp
+include "data_frame/types/data_frame.hpp"
+
+int main(int argc, char** argv) {
+    df_column<df_string> numbers = {"hello world", "yoshihara kazuki"};
+
+    df_data_frame df = {
+        {"id", df_column<int>{1, 2, 3, 4, 5}},
+        {"name", df_column<df_string>{"1", "2", "3", "4", "5"}}
+    };
+
+    // df_data_frame still not completed
+    
+    numbers.print();
+    return 0;
+}
+```
+
+
+## Updates
+
+- 2025-08-16:
+  - rewrite `df_object`, `df_object_chunk`, `df_column`
+  - change naming style from `PascalCase` to `snake_case`
+  - some memory fix
+  - update README.md
+- 2025-08-15:
+  - arrange files place
+  - start making DfDataFrame
+- 2025-08-14:
+  - update README.md
+
 
 
 ## Features
@@ -23,9 +115,9 @@ last update: 2025/08/14
 4. Sqlite3 (if you want to read/write .db)
 5. myhtml2 (original included [myhtml2.3.0](https://github.com/Fuuki255/myhtml2) at package)
 
-## classes
+## **Classes**
 
-### **DfDate**
+### **df_date**
 
 date object, a time_t encapsulation
 
@@ -33,46 +125,37 @@ operation:
 ```cpp
 
 // selfs strptime(), no depending system
-Date date("2025-08-14 00:00");
-Date now(time(NULL));
+df_date date("2025-08-14 00:00");
+df_date now(time(NULL));
 
 struct tm* tm = localtime(&t);
-Date dateFromTm(tm);
+df_date date_localtime(tm);
 
-printf("the time: %s\n", date.toString());
+printf("the time: %s\n", date.c_str());
 ```
 
-### **DfObject**
+### **df_object**
 
-cell object, storing multi-type data
+multi-types object with compact size (8 bytes)
 
-samples to get different types data, if getting different types will throw DfException
+**structure:**
 
 ```cpp
-// get type
-DfType objType = object.getType();
+template<typename T>          // the T will not use to store data directly, but it will change the object handling
+class df_object {
+  union U {
+    void*       as_pointer;    // sometime could use df_object to store some customize object, but df_object will not help your memory delete
+    double      as_number;     // double type to store BOOLEAN or NUMBER data
+    long        as_integer;    // to store CATEGORY data
+    df_string*  as_string;     // STRING data
+    df_date     as_date;       // DATE data
 
-// is null?
-bool isNull = object.isNull();
-
-// get data
-void* pointer = object.getPointer();
-bool boolean = (bool)object;
-int integer = (int)object;
-long longInt = (long)object;
-double doubleValue = (double)object;
-const char* cstr = (const char*)object;
-DfDate date = (Date)object;
-
-// set value
-object = pointer;
-object = boolean;
-object = integer;
-object = longInt;
-object = doubleValue;
-object = cstr;
-object = date;
+  } data;
+};
 ```
+
+**methods
+
 
 
 ### **DfColumn**
