@@ -192,7 +192,6 @@ size_t df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
 
 class df_date {
   time_t t;
-  static char STATIC_BUFFER[128];
 
 public:
     static const char* default_format;
@@ -212,15 +211,14 @@ public:
         return t;
     }
 
-    const char* c_str(char* buf = STATIC_BUFFER, const char* fmt = default_format) const {
+    const char* c_str(char* buf = DF_STATIC_DATE_BUFFER, const char* fmt = default_format) const {
         struct tm* tm = localtime(&t);
-        strftime(buf, 63, fmt, tm);
+        strftime(buf, DF_STATIC_DATE_BUFFER_LENGTH, fmt, tm);
         return buf;
     }
 };
 
 
-char df_date::STATIC_BUFFER[128];
 const char* df_date::default_format = "%Y-%m-%d %H:%M:%S";
 
 

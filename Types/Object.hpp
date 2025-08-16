@@ -86,6 +86,8 @@ inline constexpr df_type df_get_type_v = df_get_type<T>::value;
 
 
 
+
+
 template<typename T = DF_DEFAULT_TYPE>
 class df_object {
   static_assert(sizeof(T) <= 8 || std::is_same_v<df_string, T>, "T size could not over 8 bytes!");
@@ -93,9 +95,6 @@ class df_object {
 
   friend class df_object_chunk<T>;
   friend int main(int argc, char** argv);
-
-  static char STATIC_BUFFER[];
-  static const char STATIC_BUFFER_LENGTH = 33;
 
 
   union U {
@@ -267,26 +266,26 @@ public:
 
   // == c_str() ==
 
-  inline const char* c_str(int type = df_get_type_v<T>, const char* fmtFloat = DF_DEFAULT_FLOAT_FORMAT, char* buffer = DF_STATIC_BUFFER) const {
+  inline const char* c_str(int type = df_get_type_v<T>, const char* fmtFloat = DF_DEFAULT_FLOAT_FORMAT, char* buffer = DF_STATIC_OBJECT_BUFFER) const {
     if (is_null()) {
       return "null";
     }
 
     switch (type) {
       case DF_TYPE_POINTER:
-        snprintf(buffer, DF_STATIC_BUFFER_LENGTH, "%p", data.as_pointer);
+        snprintf(buffer, DF_STATIC_OBJECT_BUFFER_LENGTH, "%p", data.as_pointer);
         return buffer;
       case DF_TYPE_BOOLEAN:
         return data.as_number ? "true" : "false";
       case DF_TYPE_STRING:
         return data.as_string->c_str();
       case DF_TYPE_NUMBER:
-        snprintf(buffer, DF_STATIC_BUFFER_LENGTH, fmtFloat, data.as_number);
+        snprintf(buffer, DF_STATIC_OBJECT_BUFFER_LENGTH, fmtFloat, data.as_number);
         return buffer;
       case DF_TYPE_DATE:
         return data.as_date.c_str();
       case DF_TYPE_CATEGORY:
-        snprintf(buffer, DF_STATIC_BUFFER_LENGTH, "category(%ld)", data.as_category.category);
+        snprintf(buffer, DF_STATIC_OBJECT_BUFFER_LENGTH, "category(%ld)", data.as_category.category);
         return buffer;
       default:
         return "unknown-type";
