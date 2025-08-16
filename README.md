@@ -2,7 +2,7 @@
 
 ## info
 
-| programmer   | ふうき255          |
+| programmer   | かずき256          |
 |:-------------|:-------------------|
 | version      | beta 1.0.0         |
 | last update  | 2025/08/14         |
