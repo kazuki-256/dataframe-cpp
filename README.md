@@ -83,22 +83,6 @@ int main(int argc, char** argv) {
 }
 ```
 
-
-## Updates
-
-- 2025-08-16:
-  - rewrite `df_object`, `df_object_chunk`, `df_column`
-  - change naming style from `PascalCase` to `snake_case`
-  - some memory fix
-  - update README.md
-- 2025-08-15:
-  - arrange files place
-  - start making DfDataFrame
-- 2025-08-14:
-  - update README.md
-
-
-
 ## Features
 
 1. read/write data frame from/to .csv, .xlsx, .html, .db
@@ -114,6 +98,22 @@ int main(int argc, char** argv) {
 3. OpenCV (if you want RandomForest)
 4. Sqlite3 (if you want to read/write .db)
 5. myhtml2 (original included [myhtml2.3.0](https://github.com/Fuuki255/myhtml2) at package)
+
+
+## Updates
+
+- 2025-08-16:
+  - rewrite `df_object`, `df_object_chunk`, `df_column`
+  - change naming style from `PascalCase` to `snake_case`
+  - some memory fix
+  - update README.md
+- 2025-08-15:
+  - arrange files place
+  - start making DfDataFrame
+- 2025-08-14:
+  - update README.md
+
+
 
 ## **Classes**
 
