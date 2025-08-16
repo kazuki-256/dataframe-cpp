@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
 4. OpenCV::RandomForest
 5. SocketSQL to host SQL server
 
-## depends
+## depends (no anything depending now)
 
 1. Freexl (if you want to read .xlsx)
 2. xlsxio_write (if you want to write .xlsx)
