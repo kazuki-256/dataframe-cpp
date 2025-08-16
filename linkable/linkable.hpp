@@ -79,16 +79,16 @@ public:
     public:
         TLinkable* prev, *now, *next;
 
-        Iterator(TLinkable* position) {
-            now = position;
-            prev = now ? now->tlLeft : NULL;
-            next = now ? now->tlRight : NULL;
+        Iterator(const TLinkable* position) {
+            now = (TLinkable*)position;
+            prev = (TLinkable*)now ? now->tlLeft : NULL;
+            next = (TLinkable*)now ? now->tlRight : NULL;
         }
 
-        Iterator(TLinkable* _prev, TLinkable* _now, TLinkable* _next) {
-            prev = _prev;
-            now = _now;
-            next = _next;
+        Iterator(const TLinkable* _prev, const TLinkable* _now, const TLinkable* _next) {
+            prev = (TLinkable*)_prev;
+            now = (TLinkable*)_now;
+            next = (TLinkable*)_next;
         }
 
         Object* operator*() {
@@ -146,11 +146,28 @@ public:
         }
     };
 
+    class ConstIterator : public Iterator {
+    public:
+        TLinkable* prev, *now, *next;
+
+        const Object* operator*() const {
+            return (Object*)now;
+        }
+    };
+
     Iterator begin() const {
         return Iterator(NULL, tlFirst, tlFirst ? tlFirst->tlRight : NULL);
     }
 
     Iterator end() const {
+        return Iterator(tlLast, NULL, NULL);
+    }
+
+    ConstIterator rbegin() const {
+        return Iterator(NULL, tlFirst, tlFirst ? tlFirst->tlRight : NULL);
+    }
+
+    ConstIterator rend() const {
         return Iterator(tlLast, NULL, NULL);
     }
 

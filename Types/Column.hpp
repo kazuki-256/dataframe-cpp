@@ -6,7 +6,7 @@
 #endif
 
 #ifndef _DF_OBJECT_HPP_
-#include "Object.hpp"
+#include "object.hpp"
 #endif
 
 #ifndef _LINKABLE_HPP_
@@ -346,8 +346,7 @@ public:
   // === iterator ===
 
   class iterator {
-    df_object_chunk<object_t>* chunk;
-    int index;
+  protected:
 
     inline iterator& next() {
       index++;
@@ -359,7 +358,14 @@ public:
       return *this;
     }
 
+    df_object<object_t>& get() const {
+      return chunk->objects[index];
+    }
+
   public:
+    df_object_chunk<object_t>* chunk;
+    int index;
+
     iterator(df_object_chunk<object_t>* _chunk) {
       chunk = _chunk;
       index = 0;
@@ -367,13 +373,11 @@ public:
 
 
 
-    inline df_object<object_t>& operator*() {
-      df_debug3("test %d", index);
-      return chunk->objects[index];
+    inline df_object<object_t>& operator*() const {
+      return get();
     }
 
-    inline bool operator!=(const iterator& other) {
-      df_debug3("check");
+    inline bool operator!=(const iterator& other) const {
       return chunk != NULL;
     }
 
@@ -386,48 +390,13 @@ public:
     }
   };
 
-  class const_iterator {
-    df_object_chunk<object_t>* chunk = NULL;
-    int index = 0;
 
-    inline const_iterator& next() {
-      index++;
-      if (index >= chunk->usage) {
-        df_debug3("%d", index);
-        chunk = (df_object_chunk<object_t>*)chunk->tlNext();
-        index = 0;
-      }
-      return *this;
-    }
-
+  class const_iterator : public iterator {
   public:
-    const_iterator(df_object_chunk<object_t>* _chunk) {
-      chunk = _chunk;
-      index = 0;
-    }
+    const_iterator(df_object_chunk<object_t>* _chunk) : iterator(_chunk) {}
 
-    const_iterator() {
-      chunk = NULL;
-      index = 0;
-    }
+    const_iterator() : iterator(NULL) {}
 
-
-
-    inline const df_object<object_t>& operator*() {
-      return chunk->objects[index];
-    }
-
-    inline bool operator!=(const const_iterator& other) {
-      return chunk != NULL;
-    }
-
-    inline const_iterator& operator++() {
-      return next();
-    }
-
-    inline const_iterator& operator++(int) {
-      return next();
-    }
   };
 
 
@@ -450,6 +419,9 @@ public:
     df_debug3("const end()");
     return const_iterator(NULL);
   }
+
+
+
 
 
 

@@ -2,12 +2,11 @@
 
 ## info
 
-| programmer   | かずき256          |
-|:-------------|:-------------------|
-| version      | beta 1.0.0         |
-| last update  | 2025/08/14         |
-| state        | under development  |
-
+| programmer  | かずき256         |
+| :---------- | :---------------- |
+| version     | beta 1.0.0        |
+| last update | 2025/08/14        |
+| state       | under development |
 
 ## init
 
@@ -15,8 +14,7 @@ This data frame API is for data science in c++, target at readable, high perform
 
 The API will store the data handles steps to df_process and execute data processs when df_process convert to iterator, df_column or df_data_frame. it would support sql commands, vector operation and data science method (min(), max(), median(), etc)
 
-Currently, this API stills in making the df_data_frame object, but the main.cpp shows over my excepted cleanly. 
-
+Currently, this API stills in making the df_data_frame object, but the main.cpp shows over my excepted cleanly.
 
 ## Sample
 
@@ -62,7 +60,6 @@ int main(int argc, char** argv) {
 }
 ```
 
-
 **currently**
 
 ```cpp
@@ -77,8 +74,9 @@ int main(int argc, char** argv) {
     };
 
     // df_data_frame still not completed
-    
-    numbers.print();
+  
+    std::cout << numbers << "\n";
+    std::cout << df << "\n";
     return 0;
 }
 ```
@@ -97,23 +95,29 @@ int main(int argc, char** argv) {
 2. xlsxio_write (if you want to write .xlsx)
 3. OpenCV (if you want RandomForest)
 4. Sqlite3 (if you want to read/write .db)
-5. myhtml2 (original included [myhtml2.3.0](https://github.com/Fuuki255/myhtml2) at package)
-
+5. myhtml2 (original included [myhtml2.3.0](https://github.com/kazuki-256/myhtml2) at package)
+6. linkable (original inclued [linkable3.1](https://github.com/kazuki-256/linkable) at package)
 
 ## Updates
 
+- 2025-08-17:
+
+  - fix `df_column<>` memory problem
+  - add `df_object<df_category>`
+  - add df_column and df_data_frame `std::cout` support
 - 2025-08-16:
+
   - rewrite `df_object`, `df_object_chunk`, `df_column`
   - change naming style from `PascalCase` to `snake_case`
   - some memory fix
   - update README.md
 - 2025-08-15:
+
   - arrange files place
   - start making DfDataFrame
 - 2025-08-14:
+
   - update README.md
-
-
 
 ## **Classes**
 
@@ -122,6 +126,7 @@ int main(int argc, char** argv) {
 date object, a time_t encapsulation
 
 operation:
+
 ```cpp
 
 // selfs strptime(), no depending system
@@ -156,22 +161,21 @@ class df_object {
 
 **methods
 
-
-
 ### **DfColumn**
 
 column object, store DfObject by chunked vector.
 
 you could directly handlea object by:
+
 - `DfObject& object = column[index]` or
 - `for (DfObject& object : column) {}`
 
 also, you can use to execute SQL command:
 
-| code | description|
-|:---|:---|
-| DfProcess process = column.as("name") | give name to column and become a DfProcess |
-| dataFrame.select("id, name").join(column, "name") | join other process as "name" |
+| code                                              | description                                |
+| :------------------------------------------------ | :----------------------------------------- |
+| DfProcess process = column.as("name")             | give name to column and become a DfProcess |
+| dataFrame.select("id, name").join(column, "name") | join other process as "name"               |
 
 also, you can do operation:
 
@@ -211,26 +215,26 @@ for (DfObject& object : column) {
 
 ```
 
-
 ### **DfDataFrame**
 
 data frame object, store DfObject by multi named-column.
 
 You could directly handles objects by:
+
 - `DfRow& loc(int index)` or
 - `for (DfRow& row : dataFrame) {}`
 
 Or you can execute sql command to create new data frame:
 
-| code | description |
-|:---|:---|
-| df.as("df") | give name to the data frame, all DfColumn or DfDataFrame don't have their owns name |
-| df.select("id, x, y") | select output data like SQL (default: SELECT *) |
-| df.join(dfSalary, "other", "job = other.id") | include other data frame |
-| df.where("age < 25") | set conditions |
-| df.groupBy("job") | group by data |
-| df.orderBy("age", DF_ASC) | asc/desc order by data |
-| df.limit(10) | limit result count |
+| code                                         | description                                                                         |
+| :------------------------------------------- | :---------------------------------------------------------------------------------- |
+| df.as("df")                                  | give name to the data frame, all DfColumn or DfDataFrame don't have their owns name |
+| df.select("id, x, y")                        | select output data like SQL (default: SELECT *)                                     |
+| df.join(dfSalary, "other", "job = other.id") | include other data frame                                                            |
+| df.where("age < 25")                         | set conditions                                                                      |
+| df.groupBy("job")                            | group by data                                                                       |
+| df.orderBy("age", DF_ASC)                    | asc/desc order by data                                                              |
+| df.limit(10)                                 | limit result count                                                                  |
 
 - all SQL methods making a new DfProcess
 
@@ -269,12 +273,12 @@ x    y
 
 - not the real output
 
-
 ### **DfProcess**
 
 a virtual data frame to execute sql command or vector process, its data could convert to Iterator, DfDataFrame or DfColumn.
 
 Sample
+
 ```cpp
 DfDataFrame staffs = DfReadCsv("staffs.csv");
 DfDataFrame jobs = DfReadCsv("jobs.csv");
@@ -320,7 +324,6 @@ DfDataFrame output2 = process2;
 
 ```
 
-
 ### **DfRow**
 
-a virtual object for get/set data from DfDataframe or DfProcess 
+a virtual object for get/set data from DfDataframe or DfProcess
