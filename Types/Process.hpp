@@ -1,6 +1,10 @@
 #ifndef _DF_PROCESS_HPP_
 #define _DF_PROCESS_HPP_
 
+#ifndef _DF_CONFIG_HPP_
+#include "Config.hpp"
+#endif
+
 #ifndef _DF_DATAFRAME_HPP_
 #include "DataFrame.hpp"
 #endif

@@ -9,7 +9,7 @@
 
 
 // parse month
-size_t dfParseMonth(const char* strmonth, size_t n, int* month) {
+size_t df_parse_month(const char* strmonth, size_t n, int* month) {
     static const char* MONTHS[12] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
 
     for (int i = 0; i < 12; i++) {
@@ -22,7 +22,7 @@ size_t dfParseMonth(const char* strmonth, size_t n, int* month) {
 }
 
 // parse weekday
-size_t dfParseWeekday(const char* strweek, size_t n, int* week) {
+size_t df_parse_weekday(const char* strweek, size_t n, int* week) {
     static const char* WEEKDAYS[7] = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
 
     for (int i = 0; i < 7; i++) {
@@ -36,7 +36,7 @@ size_t dfParseWeekday(const char* strweek, size_t n, int* week) {
 
 // self strptime for parsing time in win32
 // ! be causeful since this method will not complete all values
-size_t dfParseTime(const char* strdate, const char* fmt, struct tm* tm) {
+size_t df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
     const char* original = strdate;
     int symbol, c;
     char buffer[10];
@@ -85,10 +85,10 @@ size_t dfParseTime(const char* strdate, const char* fmt, struct tm* tm) {
                 strdate += 2;
                 continue;
             case 'B':
-                strdate += dfParseMonth(strdate, 12, &tm->tm_mon);
+                strdate += df_parse_month(strdate, 12, &tm->tm_mon);
                 continue;
             case 'b':
-                dfParseMonth(strdate, 3, &tm->tm_mon);
+                df_parse_month(strdate, 3, &tm->tm_mon);
                 strdate += 3;
                 continue;
             case 'd':
@@ -105,10 +105,10 @@ size_t dfParseTime(const char* strdate, const char* fmt, struct tm* tm) {
                 strdate += 3;
                 continue;
             case 'A':
-                strdate += dfParseWeekday(strdate, 12, &tm->tm_wday);
+                strdate += df_parse_weekday(strdate, 12, &tm->tm_wday);
                 continue;
             case 'a':
-                dfParseWeekday(strdate, 3, &tm->tm_wday);
+                df_parse_weekday(strdate, 3, &tm->tm_wday);
                 strdate += 3;
                 continue;
             case 'u':
@@ -169,13 +169,13 @@ size_t dfParseTime(const char* strdate, const char* fmt, struct tm* tm) {
                 strdate += 5;
                 continue;
             case 'c':
-                strdate += dfParseTime(strdate, "%a %b %d %H:%M:%S %Y", tm);
+                strdate += df_parse_time(strdate, "%a %b %d %H:%M:%S %Y", tm);
                 continue;
             case 'x':
-                strdate += dfParseTime(strdate, "%d/%m/%y", tm);
+                strdate += df_parse_time(strdate, "%d/%m/%y", tm);
                 continue;
             case 'X':
-                strdate += dfParseTime(strdate, "%H:%M:%S", tm);
+                strdate += df_parse_time(strdate, "%H:%M:%S", tm);
                 continue;
                 
         }
@@ -188,20 +188,20 @@ size_t dfParseTime(const char* strdate, const char* fmt, struct tm* tm) {
 
 
 
-class DfDate {
+class df_date {
   time_t t;
-  static char sharedBuffer[128];
+  static char STATIC_BUFFER[128];
 
 public:
-    static const char* defaultFormat;
+    static const char* default_format;
 
 
-    DfDate(time_t _t) { t = _t; }
+    df_date(time_t _t) { t = _t; }
 
-    DfDate(const char* strdate, const char* fmt = defaultFormat) {
+    df_date(const char* strdate, const char* fmt = default_format) {
         struct tm tm{};
 
-        dfParseTime(strdate, fmt, &tm);
+        df_parse_time(strdate, fmt, &tm);
         t = mktime(&tm);
     }
 
@@ -210,7 +210,7 @@ public:
         return t;
     }
 
-    const char* toString(char* buf = sharedBuffer, const char* fmt = defaultFormat) const {
+    const char* c_str(char* buf = STATIC_BUFFER, const char* fmt = default_format) const {
         struct tm* tm = localtime(&t);
         strftime(buf, 63, fmt, tm);
         return buf;
@@ -218,8 +218,8 @@ public:
 };
 
 
-char DfDate::sharedBuffer[128];
-const char* DfDate::defaultFormat = "%Y-%m-%d %H:%M:%S";
+char df_date::STATIC_BUFFER[128];
+const char* df_date::default_format = "%Y-%m-%d %H:%M:%S";
 
 
 
