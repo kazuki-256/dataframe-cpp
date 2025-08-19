@@ -1,10 +1,7 @@
-#include <stdio.h>
-#include <time.h>
-
+#include <string>
 
 int main(int argc, char** argv) {
-    long value;
-    sscanf("+0800", "%05lu", &value);
-    printf("%d\n", value);
-    return 0;
+    std::string text = "123";
+
+    printf("debug: %s\n", !text.empty() ? "true" : "false");
 }

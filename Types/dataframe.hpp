@@ -1,5 +1,5 @@
-#ifndef _DF_DATA_FRAME_HPP_
-#define _DF_DATA_FRAME_HPP_
+#ifndef _DF_DATAFRAME_HPP_
+#define _DF_DATAFRAME_HPP_
 
 #ifndef _DF_COLUMN_HPP_
 #include "column.hpp"
@@ -10,8 +10,8 @@
 
 
 
-typedef df_object<>& (*df_row_get_by_string)(void* userptr, const char* colName);
-typedef df_object<>& (*df_row_get_by_index)(void* userptr, int index);
+typedef raw<>& (*df_row_get_by_string)(void* userptr, const char* colName);
+typedef raw<>& (*df_row_get_by_index)(void* userptr, int index);
 typedef int (*df_row_get_length)(void* userptr);
 typedef void (*df_row_release)(void* userptr);
 
@@ -23,40 +23,34 @@ class df_process;
 
 
 // template for df_row and df_const_row
-class _df_row {
+class basic_row {
 protected:
   void* userptr;
 
-  df_row_get_by_string funcGetByString;
-  df_row_get_by_index funcGetByIndex;
+  row_get_by_string funcGetByString;
+  row_get_by_index funcGetByIndex;
 
-  df_row_get_length funcGetLength;
+  row_get_length funcGetLength;
 
-  df_row_release funcRelease;
+  row_release funcRelease;
 
 
-  void setPtr(void* _userptr) {
-    userptr = _userptr;
-  }
+  void setPtr(void* _userptr);
 
 public:
-  ~_df_row() {
-    if (userptr) funcRelease(userptr);
-  }
+  ~basic_row();
 
-  int getLength() const {
-    return funcGetLength(userptr);
-  }
+  int getLength() const;
 };
 
 
-class df_row : public _df_row {
+class row : public basic_row {
 public:
-  df_row(void* _userptr,
-        df_row_get_by_string getByString,
-        df_row_get_by_index getByIndex,
-        df_row_get_length getLength,
-        df_row_release release)
+  row(void* _userptr,
+        row_get_by_string getByString,
+        row_get_by_index getByIndex,
+        row_get_length getLength,
+        row_release release)
   {
     userptr = _userptr;
     funcGetByString = getByString;
@@ -65,17 +59,17 @@ public:
     funcRelease = release;
   }
 
-  df_object<>& operator[](const char* colName) {
+  raw<>& operator[](const char* colName) {
     return funcGetByString(userptr, colName);
   }
 
-  df_object<>& operator[](int index) {
+  raw<>& operator[](int index) {
     return funcGetByIndex(userptr, index);
   }
 };
 
 
-class df_const_row : public _df_row {
+class df_const_row : public basic_row {
 public:
   df_const_row(void* _userptr,
         df_row_get_by_string getByString,
@@ -90,11 +84,11 @@ public:
     funcRelease = release;
   }
 
-  const df_object<>& operator[](const char* colName) const {
+  const raw<>& operator[](const char* colName) const {
     return funcGetByString(userptr, colName);
   }
 
-  const df_object<>& operator[](int index) const {
+  const raw<>& operator[](int index) const {
     return funcGetByIndex(userptr, index);
   }
 };
@@ -104,26 +98,26 @@ public:
 
 
 
-class df_data_frame {
+class dataframe {
   std::unordered_map<df_string, df_column<void*>> columns;
 
 public:
-  ~df_data_frame() {
+  ~dataframe() {
 
   }
 
 
 
-  df_data_frame(const std::initializer_list<std::pair<const char*, df_column<void*>>>& _columns) {
-    df_debug4("create df_data_frame 1");
+  dataframe(const std::initializer_list<std::pair<const char*, df_column<void*>>>& _columns) {
+    df_debug4("create dataframe 1");
 
     for (auto& pair : _columns) {
       columns.insert(pair);
     }
   }
 
-  df_data_frame(const std::initializer_list<df_string>& columnNames) {
-    df_debug4("create df_data_frame 2");
+  dataframe(const std::initializer_list<df_string>& columnNames) {
+    df_debug4("create dataframe 2");
 
     for (const df_string& name : columnNames) {
       columns.insert({name, df_column<void*>()});
@@ -133,7 +127,7 @@ public:
 
   // == copy ==
 
-  df_data_frame& operator=(df_data_frame& src) {
+  dataframe& operator=(dataframe& src) {
     if (!columns.empty()) {
       columns.clear();
     }
@@ -142,17 +136,17 @@ public:
     return *this;
   }
 
-  df_data_frame(df_data_frame& src) {
+  dataframe(dataframe& src) {
     columns = src.columns;
   }
 
   // == move ==
 
-  df_data_frame(df_data_frame&& src) {
+  dataframe(dataframe&& src) {
     
   }
 
-  df_data_frame& operator=(df_data_frame&& src) {
+  dataframe& operator=(dataframe&& src) {
     return *this;    
   }
 
@@ -220,7 +214,7 @@ public:
     return os;
   }
 
-  friend std::ostream& operator<<(std::ostream& os, const df_data_frame& df) {
+  friend std::ostream& operator<<(std::ostream& os, const dataframe& df) {
     df.write_stream(os);
     return os;
   }
@@ -237,32 +231,10 @@ public:
 
   df_process order_by(const char* sql) const;
 
-  df_process with(df_data_frame& other, const char* as_name) const;
+  df_process with(dataframe& other, const char* as_name) const;
 };
 
 
 
 
-
-df_data_frame df_read_csv(const char* csv_file);
-
-df_data_frame df_read_excel(const char* excel_file);
-
-df_data_frame df_read_html(const char* html_file);
-
-df_data_frame df_read_xml(const char* xml_file);
-
-df_data_frame df_read_db();
-
-
-
-#ifdef _MYHTML2_H_
-
-df_data_frame DfReadHtml() {
-
-}
-
-#endif
-
-
-#endif // _DF_DATA_FRAME_HPP_
+#endif // _DF_DATAFRAME_HPP_

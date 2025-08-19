@@ -1,16 +1,16 @@
-#define DF_DEBUG_LEVEL 6
-#include "types/data_frame.hpp"
+#include "types/raw.hpp"
+
 
 int main(int argc, char** argv) {
-    const df_data_frame df = {
-        {"id", df_column<int>{1, 2, 3, 4, 5}},
-        {"name", df_column<df_string>{"a", "b", "c", "d", "e"}}
-    };
-
-    // df_data_frame still not completed
-    
-
-    std::cout << df["name"][2].c_str(DF_TYPE_STRING) << "\n";
+    try {
+        df_raw_t<DF_DATETIME> raw_text = "0105-12-16";
+        printf("type: %s\n", df_get_type_string(DF_DATETIME));
+        printf("value: %s\n", raw_text.c_str());
+        printf("value: %ld\n", df_date_t("0000-1-1"));
+        printf("sizeof: %ld\n", sizeof(struct tm));
+    }
+    catch (df_exception_t& e) {
+        fprintf(stderr, "info: %s\n", e.what());
+    }
     return 0;
-    
 }

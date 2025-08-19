@@ -60,10 +60,10 @@
 
 
 
-class df_exception : public std::exception {
+class df_exception_t : public std::exception {
   char* msg;
 public:
-  df_exception(const char* fmt, ...) {
+  df_exception_t(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
 
@@ -74,7 +74,7 @@ public:
     va_end(args);
   }
 
-  ~df_exception() {
+  ~df_exception_t() {
     free(msg);
   }
 

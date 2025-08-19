@@ -23,15 +23,6 @@
 
 // ==== types of object ==
 
-typedef void* df_undefined;
-
-typedef std::string df_string;
-typedef void* df_pointer;
-typedef double df_number;
-typedef bool df_boolean;
-
-
-
 
 class df_category {
   template<typename T> friend class df_object;
@@ -55,20 +46,20 @@ public:
 
 // ==== types of enum ====
 
-typedef enum df_type {
-  DF_TYPE_POINTER,
-  DF_TYPE_BOOLEAN,
-  DF_TYPE_STRING,
-  DF_TYPE_NUMBER,
-  DF_TYPE_DATE,
-  DF_TYPE_CATEGORY,   // this type have to create from df_column
+typedef enum object_type {
+  TYPE_POINTER,
+  TYPE_BOOLEAN,
+  TYPE_STRING,
+  TYPE_NUMBER,
+  TYPE_DATE,
+  TYPE_CATEGORY,   // this type have to create from df_column
 
-} df_type;
+} object_type;
 
 
 
 template<typename T>
-struct df_get_type {
+struct get_object_type {
     static constexpr df_type value =
       std::is_pointer_v<T> ? DF_TYPE_POINTER
       : std::is_same_v<T, df_boolean> ? DF_TYPE_BOOLEAN
@@ -79,7 +70,7 @@ struct df_get_type {
 };
 
 template<typename T>
-inline constexpr df_type df_get_type_v = df_get_type<T>::value;
+inline constexpr object_type df_get_type_v = df_get_type<T>::value;
 
 
 
