@@ -206,6 +206,99 @@ size_t df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
 
 
 
+class df_interval_t {
+public:
+  int years = 0, months = 0, days = 0;
+  int hours = 0, minutes = 0, seconds = 0;
+
+  df_interval_t(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    vsnprintf(DF_STATIC_BUFFER, DF_STATIC_BUFFER_LENGTH, fmt, args);
+    va_end(args);
+
+    
+    char* p = DF_STATIC_BUFFER;
+    int value = 0;
+    int c = *p;
+
+    days = 0;
+
+    while (c = *p) {
+        while (c != '\0' && isspace(c)) c = *(p++);
+        if (c == '\0') {
+            return;
+        }
+
+        if (isdigit(c)) {
+            sscanf(p, "%d", &value);
+
+            while ((c = *p++) && isdigit(c));
+            continue;
+        }
+
+        if (!isalpha(c)) {
+            c = *(p++);
+            continue;
+        }
+
+        if (strncasecmp(p, "year", 4) == 0) {
+            years = value;
+            p += 4;
+            continue;
+        }
+        if (strncasecmp(p, "month", 5) == 0) {
+            months = value;
+            p += 5;
+            continue;
+        }
+        if (strncasecmp(p, "week", 4) == 0) {
+            days += value * 7;
+            p += 4;
+            continue;
+        }
+        if (strncasecmp(p, "day", 3) == 0) {
+            days += value;
+            p += 3;
+            continue;
+        }
+        if (strncasecmp(p, "hour", 4) == 0) {
+            hours += value * 7;
+            p += 4;
+            continue;
+        }
+        if (strncasecmp(p, "min", 3) == 0) {
+            minutes += value * 7;
+            p += 3;
+
+            if (strncasecmp(p, "utue", 4) == 0) {
+                p += 4;
+            }
+            continue;
+        }
+        if (strncasecmp(p, "sec", 3) == 0) {
+            seconds = value;
+            p += 3;
+
+            if (strncasecmp(p, "ond", 3) == 0) {
+                p += 3;
+            }
+            continue;
+        }
+        p++;
+    }
+  }
+
+  
+  const char* c_str(char* buffer = DF_STATIC_BUFFER, size_t buffer_size = DF_STATIC_BUFFER_LENGTH) const {
+    snprintf(buffer, buffer_size, "df_interval_t(%d years, %d months, %d days, %d hours, %d mintues, %d seconds)",
+        years, months, days, hours, minutes, seconds);
+    return buffer;
+  }
+};
+
+
 
 
 class df_date_t {
@@ -228,9 +321,44 @@ public:
       return *this;
     }
 
-    df_date_t& operator+(time_t offset) {
-      t += offset;
-      return *this;
+    df_date_t operator+(const df_interval_t& interval) const {
+        struct tm* tm = localtime(&t);
+
+        struct tm dest{};
+        dest.tm_year = tm->tm_year + interval.years;
+        dest.tm_mon = tm->tm_mon + interval.months;
+        dest.tm_mday = tm->tm_mday + interval.days;
+        dest.tm_hour = tm->tm_hour + interval.hours;
+        dest.tm_min = tm->tm_min + interval.minutes;
+        dest.tm_sec = tm->tm_sec + interval.seconds;
+
+        return df_date_t(mktime(&dest));
+    }
+
+    df_date_t& operator+=(const df_interval_t& interval) {
+        *this = *this + interval;
+        return *this;
+    }
+
+
+
+    df_date_t operator-(const df_interval_t& interval) const {
+        struct tm* tm = localtime(&t);
+
+        struct tm dest{};
+        dest.tm_year = tm->tm_year - interval.years;
+        dest.tm_mon = tm->tm_mon - interval.months;
+        dest.tm_mday = tm->tm_mday - interval.days;
+        dest.tm_hour = tm->tm_hour - interval.hours;
+        dest.tm_min = tm->tm_min - interval.minutes;
+        dest.tm_sec = tm->tm_sec - interval.seconds;
+
+        return df_date_t(mktime(&dest));
+    }
+
+    df_date_t& operator-=(const df_interval_t& interval) {
+        *this = *this - interval;
+        return *this;
     }
 
 
@@ -245,24 +373,6 @@ public:
     }
 };
 
-
-
-class df_interval_t {
-public:
-  int years, months, days;
-  int hours, minutes, seconds;
-
-  df_interval_t(const char* fmt, ...) {
-    
-  }
-
-  
-  const char* c_str(char* buffer = DF_STATIC_BUFFER, size_t buffer_size = DF_STATIC_BUFFER_LENGTH) const {
-    snprintf(buffer, buffer_size, "df_interval_t(%d years, %d months, %d days, %d hours, %d mintues, %d seconds)",
-        years, months, days, hours, minutes, seconds);
-    return buffer;
-  }
-};
 
 
 
