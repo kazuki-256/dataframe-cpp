@@ -1,4 +1,4 @@
-# dataframecpp (under developmenting)
+# dataframe-cpp (under developmenting)
 
 ## info
 
@@ -23,7 +23,7 @@ Currently, this API stills in making the df_data_frame object, but the main.cpp 
 **excepted**
 
 ```cpp
-#include "dataframe/dataframe.hpp"
+#include "dataframe-cpp/dataframe.hpp"
 
 
 int main(int argc, char** argv) {
