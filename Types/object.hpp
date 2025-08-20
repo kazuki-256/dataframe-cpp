@@ -83,8 +83,12 @@ public:
 
 
 
+<<<<<<< HEAD:Types/Object.hpp
 
 
 
 
 #endif // _DF_TYPE_OBJECT_HPP_
+=======
+#endif // _DF_OBJECT_HPP_
+>>>>>>> e91bc2cb611defaf90ba1af8ca7646f80da722a7:Types/object.hpp

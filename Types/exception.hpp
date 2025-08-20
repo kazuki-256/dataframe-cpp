@@ -90,6 +90,7 @@ class df_exception_out_of_index : public std::exception {
   }
 };
 
+<<<<<<< HEAD:Types/Exception.hpp
 
 #define df_error_if_null_pointer(mem, ret)\
   if (mem == NULL) {\
@@ -100,3 +101,6 @@ class df_exception_out_of_index : public std::exception {
 
 
 #endif // _DF_EXCEPTION_HPP_
+=======
+#endif // _DF_EXCEPTION_HPP_
+>>>>>>> e91bc2cb611defaf90ba1af8ca7646f80da722a7:Types/exception.hpp

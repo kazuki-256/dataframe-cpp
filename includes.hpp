@@ -25,6 +25,9 @@
 #ifndef _MATH_H_
 #include <math.h>
 #endif
+#ifndef _STDARG_H_
+#include <stdarg.h>
+#endif
 
 
 

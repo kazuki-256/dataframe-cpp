@@ -1,4 +1,4 @@
-# data_frame_cpp (under developmenting)
+# dataframe-cpp (under developmenting)
 
 ## info
 
@@ -6,7 +6,8 @@
 | :---------- | :---------------- |
 | version     | beta 1.0.0        |
 | last update | 2025/08/14        |
-| state       | under development |
+| state       | developmenting     |
+
 
 ## init
 
@@ -16,41 +17,41 @@ The API will store the data handles steps to df_process and execute data process
 
 Currently, this API stills in making the df_data_frame object, but the main.cpp shows over my excepted cleanly.
 
+
 ## Sample
 
 **excepted**
 
 ```cpp
-#include "data_frame/data_frame.hpp"
+#include "dataframe-cpp/dataframe.hpp"
 
-using namespace std;
 
 int main(int argc, char** argv) {
   // == read data ==
-  df_data_frame staff = df_read_csv("staffs.csv");
-  df_data_frame job = df_read_csv("job.csv");
+  df_data_frame_t staff = df_read_csv("staffs.csv");
+  df_data_frame_t job = df_read_csv("job.csv");
 
   // == data processing ==
 
-  df_data_frame df1 = staff.as("staff")      // before to write SQL, you can give your table a name, or start without name (column name only)
+  df_dataframe_t df1 = staff.as("staff")      // before to write SQL, you can give your table a name, or start without name (column name only)
             .select("staff.id, staff.name, job.title, job.hourly * staff.worked AS salary")    // select data, just like SQL
             .join(job, "job", "staff.job_id = job.id")      // join other table as "job" by same job id
             .where("salary > 100000")                       // filter
             .order_by("salary", -1);                        // sort the output by desc 
 
-  df_data_frame df2 = staff.as("staff")
+  df_dataframe_t df2 = staff.as("staff")
             .select("job.job_title, AVG(staff.worked * job.hourly), count")
             .join(job, "job", "staff.job_id == job.id")
             .group_by("job.title")                             // group by job.title
             .mutate("COUNT(*) AS count");                      // also, you can define variables by mutate
 
   // == vector processing ==
-  df_column yearly = df1["salary"] * 12;
-  df_column staff_worked = df1["salary"] / df1["job.hourly"];
+  df_column_t yearly = df1["salary"] * 12;
+  df_column_t staff_worked = df1["salary"] / df1["job.hourly"];
 
   // == print ==
-  df1.print();
-  df2.print();
+  std::cout << df1 << "\n";
+  std::cout << df2 << "\n";
 
   // == output ==
   df_write_csv(df1, "staff_salary.csv");
@@ -91,14 +92,158 @@ int main(int argc, char** argv) {
 
 ## depends (no anything depending now)
 
-1. Freexl (if you want to read .xlsx)
-2. xlsxio_write (if you want to write .xlsx)
-3. OpenCV (if you want RandomForest)
-4. Sqlite3 (if you want to read/write .db)
-5. myhtml2 (original included [myhtml2.3.0](https://github.com/kazuki-256/myhtml2) at package)
-6. linkable (original inclued [linkable3.1](https://github.com/kazuki-256/linkable) at package)
+1. Freexl (to read .xlsx)
+2. xlsxio_write (to write .xlsx)
+3. OpenCV (if you want to use RandomForest, ploting)
+4. Sqlite3 (to read/write .db)
 
-## Updates
+## **Classes**
+
+### **df_date_t**
+
+Encapsulation of c `time_t`
+
+
+```cpp
+class df_date_t {
+  df_date_t(const char* strdate, const char* datefmt = DEFAULT);
+
+  operator time_t();
+  df_date_t& operator+(df_interval_t& interval);
+
+  const char* c_str(const char* datefmt = DEFAULT, char* buffer = DEFAULT, size_t buffer_size = DEFAULT) const;
+};
+```
+
+### **df_interval_t**
+
+structure to offset df_date_t
+
+```cpp
+class df_interval_t {
+  int years, months, days;
+  int hours, mintues, seconds;
+
+  df_interval_t(const char* fmt, ...);
+
+  const char* c_str(const char* strdate = DEFAULT, char* buffer = DEFAULT, size_t buffer_size = DEFAULT) const;
+};
+```
+
+### **df_object_t**
+
+object targeter to edit data, create own data or get `df_object_t` from `column_t`, `dataframe_t` or `query_t`
+
+```cpp
+class df_object_t {
+  df_object(type_t type);
+
+  template<typename T> df_object_t& operator=(const T& value);
+  template<typename T> df_object_t& operator!=(const T& other);
+
+  template<typename T> operator T() const;
+
+  std::string& to_string() const;
+  friend ostream& operator<<() const;    // std::cout << object;
+};
+```
+
+### **df_row_t**
+
+row targeter to edit row objects
+
+```cpp
+class df_row_t {
+  df_object_t& operator[](const char* column_name);
+
+  int get_column_count() const;
+
+  iterator begin();    // for (df_object_t& object : row);
+  iterator end();
+
+  std::string& to_string() const;
+  friend ostream& operator<<() const;    // std::cout << row;
+};
+```
+
+
+### **df_column_t<df_type_t>**
+
+```cpp
+template<df_type_t TYPE = DF_UNDEFINED>  // for init column, not different in use
+class df_column_t {
+  df_column_t(const std::vector<df_raw_t<TYPE>>& raws);
+
+  df_object_t& operator[](int index);
+  int get_length() const;
+
+  iterator begin();    // for (df_object_t& object : column)
+  iterator end();
+
+  std::string to_string() const;
+  friend ostream& operator<<() const;    // std::cout << column;
+};
+```
+
+### **df_dataframe_t**
+
+dataframe object
+
+```cpp
+class df_dataframe_t {
+  df_dataframe_t(const std::vector<std::pair<std::string, df_column<DF_UNDEFINED>>>& raws);
+
+  df_column& operator[](const char* name);
+  df_row& loc(int index);
+
+  int get_column_count() const;
+  int get_row_count() const;
+
+  iterator begin();    // for (df_row_t& row : dataframe)
+  iterator end();
+
+  std::string to_string() const;
+  friend ostream& operator<<() const;    // std::cout << column;
+
+  // == sql ==
+  df_query_t as(const char* name) const;
+  df_query_t select(const char* sql) const;
+  // ...
+};
+```
+
+### **df_query_t**
+
+query to process data by sql commands or vector operation (data is not handle by sql)
+
+```cpp
+class df_query_t {
+  // == sql commands ==
+  df_query_t& select(const char* sql);
+  df_query_t& where(const char* sql);
+  df_query_t& mutatue(const char* sql);
+  df_query_t& join(df_dataframe_t& df, const char* as_name, const char* filter_sql);
+  df_query_t& group_by(const char* column_name);
+  df_query_t& order_by(const char* column_name, int desc = DF_ASC);
+  
+  // == vector operation ==
+  df_query& operator+(double val);
+  df_query& operator-(double val);
+  // ...
+
+  // == execute/convert ==
+  operator df_dataframe_t() const;
+  operator df_column_t<DF_UNDEFINED>() const;
+
+  iterator begin() const;    // for (df_row_t& row : query)
+  iterator end() const;
+};
+```
+
+
+
+
+## Logs
 
 - 2025-08-17:
 
@@ -119,211 +264,3 @@ int main(int argc, char** argv) {
 
   - update README.md
 
-## **Classes**
-
-### **df_date**
-
-date object, a time_t encapsulation
-
-operation:
-
-```cpp
-
-// selfs strptime(), no depending system
-df_date date("2025-08-14 00:00");
-df_date now(time(NULL));
-
-struct tm* tm = localtime(&t);
-df_date date_localtime(tm);
-
-printf("the time: %s\n", date.c_str());
-```
-
-### **df_object**
-
-multi-types object with compact size (8 bytes)
-
-**structure:**
-
-```cpp
-template<typename T>          // the T will not use to store data directly, but it will change the object handling
-class df_object {
-  union U {
-    void*       as_pointer;    // sometime could use df_object to store some customize object, but df_object will not help your memory delete
-    double      as_number;     // double type to store BOOLEAN or NUMBER data
-    long        as_integer;    // to store CATEGORY data
-    df_string*  as_string;     // STRING data
-    df_date     as_date;       // DATE data
-
-  } data;
-};
-```
-
-**methods
-
-### **DfColumn**
-
-column object, store DfObject by chunked vector.
-
-you could directly handlea object by:
-
-- `DfObject& object = column[index]` or
-- `for (DfObject& object : column) {}`
-
-also, you can use to execute SQL command:
-
-| code                                              | description                                |
-| :------------------------------------------------ | :----------------------------------------- |
-| DfProcess process = column.as("name")             | give name to column and become a DfProcess |
-| dataFrame.select("id, name").join(column, "name") | join other process as "name"               |
-
-also, you can do operation:
-
-```cpp
-// == vector operation ==
-DfColumn a = column + 2;
-DfColumn b = column + other;
-DfColumn c = column - 2;
-DfColumn d = column - other;
-DfColumn e = column * 2;
-DfColumn f = column * other;
-DfColumn g = column / 2;
-DfColumn h = column / 2;
-DfColunn i = DfSqrt(column);
-
-// == math operators ==
-double total = DfSum(column);
-double avg = DfAvg(column);    // also alias DfMean
-double medium = DfMedium(column);
-double range = DfRange(column);
-double min = DfMin(column);
-double max = DfMax(column);
-int length = column.getLength();
-
-// == object operatuon ==
-column.addObject(VALUE);
-
-column.addChunkBack(SIZE);      // create SIZE size empty chunk at back
-column.addChunkFront(SIZE);     // create SIZE size chunk at front
-
-column.remove(INDEX);           // remove object in INDEX, not suggested in great size removing, suggest to create a new column
-
-// == iterating objects ==
-for (DfObject& object : column) {
-  std::cout << object << "\n";
-}
-
-```
-
-### **DfDataFrame**
-
-data frame object, store DfObject by multi named-column.
-
-You could directly handles objects by:
-
-- `DfRow& loc(int index)` or
-- `for (DfRow& row : dataFrame) {}`
-
-Or you can execute sql command to create new data frame:
-
-| code                                         | description                                                                         |
-| :------------------------------------------- | :---------------------------------------------------------------------------------- |
-| df.as("df")                                  | give name to the data frame, all DfColumn or DfDataFrame don't have their owns name |
-| df.select("id, x, y")                        | select output data like SQL (default: SELECT *)                                     |
-| df.join(dfSalary, "other", "job = other.id") | include other data frame                                                            |
-| df.where("age < 25")                         | set conditions                                                                      |
-| df.groupBy("job")                            | group by data                                                                       |
-| df.orderBy("age", DF_ASC)                    | asc/desc order by data                                                              |
-| df.limit(10)                                 | limit result count                                                                  |
-
-- all SQL methods making a new DfProcess
-
-Also vector operation: (math 2d vector basic)
-
-```
->>> df
-x y
-1 2
-3 4
->>> df + 2;
-x y
-3 4
-5 6
->>> df - 2;
- x y
--1 0
- 1 2
->>> df * 2;
-x y
-2 4
-6 8
->>> df * df;
- x  y
- 7 10
-15 22
->>> df / 2;
-x   y
-0.5 1
-1.5 2
->>> dfSqrt(df);
-x    y
-1    1.41
-1.73 2
-```
-
-- not the real output
-
-### **DfProcess**
-
-a virtual data frame to execute sql command or vector process, its data could convert to Iterator, DfDataFrame or DfColumn.
-
-Sample
-
-```cpp
-DfDataFrame staffs = DfReadCsv("staffs.csv");
-DfDataFrame jobs = DfReadCsv("jobs.csv");
-
-// == sample1 ==
-DfProcess process1 = staffs.as("staff")
-    .select("staff.id, staff.name, job.title, job.hourly, salary")
-    .join(jobs, "job", "job.id = staff.jobId")
-    .mutate("staff.worked * job.hourly", "salary")
-    .where("salary > 6000");
-
-process1.print();    // not preferred because no actually data stored
-
-// Outputs:
-// staff.id staff.name job.title job.hourly salary
-// ...
-
-
-// == sample2 ==
-DfProcess process2 = process1["salary"] * 12;
-
-
-process2.print();
-
-// Outputs:
-// salary
-// .
-// .
-// .
-
-
-
-// == outputs ==
-
-DfDataFrame output1 = process1;
-DfColumn output1Salary = process["salary"];
-
-if (process.getColumnCount() == 1) {
-    DfColumn output2Yearly = process2;  // only for one column output
-}
-DfDataFrame output2 = process2;
-
-
-```
-
-### **DfRow**
-
-a virtual object for get/set data from DfDataframe or DfProcess
