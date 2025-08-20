@@ -38,45 +38,56 @@ int df_mem_fall_basic(void* mem, DEST& value) {
 
 template<typename DEST, typename SOURCE>
 int df_mem_set_basic(void* mem, SOURCE& value) {
-    if constexpr (std::is_same_v<SOURCE, const char*>) {
-        long temp_long;
-        double temp_double;
+    *(DEST*)mem = value;
+    return 0;
+}
 
-        if constexpr (std::is_same_v<DEST, uint8_t>) {
-            sscanf(value, DF_INT_FORMAT, temp_long);
-            *(uint8_t*)mem = temp_long;
-        }
-        else if constexpr (std::is_same_v<DEST, short>) {
-            sscanf(value, DF_INT_FORMAT, temp_long);
-            *(short*)mem = temp_long;
-        }
-        else if constexpr (std::is_same_v<DEST, int>) {
-            sscanf(value, DF_INT_FORMAT, temp_long);
-            *(int*)mem = temp_long;
-        }
-        else if constexpr (std::is_same_v<DEST, long>) {
-            sscanf(value, DF_INT_FORMAT, temp_long);
-            *(long*)mem = temp_long;
-        }
-        else if constexpr (std::is_same_v<DEST, float>) {
-            sscanf(value, DF_FLOAT_FORMAT, temp_double);
-            *(float*)mem = temp_long;
-        }
-        else if constexpr (std::is_same_v<DEST, double>) {
-            sscanf(value, DF_FLOAT_FORMAT, temp_double);
-            *(double*)mem = temp_long;
-        }
-        else {
-            *(DEST*)mem = value;
-            return 0;
-        }
+template<>
+int df_mem_set_basic<uint8_t, std::string&>(void* mem, std::string& s) {
+  long temp;
+  sscanf(s, DF_INT_FORMAT, &temp);
+  *(uint8_t*)mem = temp;
+  return 0;
+}
 
-        return 0;
-    }
-    else {
-        *(DEST*)mem = value;
-        return 0;
-    }
+template<>
+int df_mem_set_basic<short, std::string&>(void* mem, std::string& s) {
+  long temp;
+  sscanf(s, DF_INT_FORMAT, &temp);
+  *(short*)mem = temp;
+  return 0;
+}
+
+template<>
+int df_mem_set_basic<int, std::string&>(void* mem, std::string& s) {
+  long temp;
+  sscanf(s, DF_INT_FORMAT, &temp);
+  *(int*)mem = temp;
+  return 0;
+}
+
+template<>
+int df_mem_set_basic<long, std::string&>(void* mem, std::string& s) {
+  long temp;
+  sscanf(s, DF_INT_FORMAT, &temp);
+  *(long*)mem = temp;
+  return 0;
+}
+
+template<>
+int df_mem_set_basic<float, std::string&>(void* mem, std::string& s) {
+  double temp;
+  sscanf(s, DF_FLOAT_FORMAT, &temp);
+  *(float*)mem = temp;
+  return 0;
+}
+
+template<>
+int df_mem_set_basic<double, std::string&>(void* mem, std::string& s) {
+  double temp;
+  sscanf(s, DF_FLOAT_FORMAT, &temp);
+  *(double*)mem = temp;
+  return 0;
 }
 
 
