@@ -38,10 +38,6 @@ int df_mem_fall_basic(void* mem, DEST& value) {
 
 template<typename DEST, typename SOURCE>
 int df_mem_set_basic(void* mem, SOURCE& value) {
-    if constexpr (std::is_same_v<DEST, std::string>) {
-        ((std::string*)mem)->~basic_string();
-    }
-
     if constexpr (std::is_same_v<SOURCE, const char*>) {
         long temp_long;
         double temp_double;
@@ -75,7 +71,7 @@ int df_mem_set_basic(void* mem, SOURCE& value) {
             return 0;
         }
 
-        
+        return 0;
     }
     else {
         *(DEST*)mem = value;
