@@ -4,7 +4,40 @@
 const char DF_VERSION[] = "beta 1.0.0";
 
 // includes
-#include "includes.hpp"
+#ifndef _GLIBCXX_VECTOR
+#include <vector>
+#endif
+#ifndef _GLIBCXX_LIST
+#include <list>
+#endif
+#ifndef _GLIBCXX_STRING
+#include <string>
+#endif
+#ifndef _GLIBCXX_OSTREAM
+#include <ostream>
+#endif
+
+
+#ifndef _TIME_H_
+#include <time.h>
+#endif
+#ifndef _STRING_H_
+#include <string.h>
+#endif
+#ifndef _STDIO_H_
+#include <stdio.h>
+#endif
+#ifndef _MATH_H_
+#include <math.h>
+#endif
+
+
+#ifndef _DF_TYPE_EXECEPTION_HPP_
+#include "types/exception.hpp"
+#endif
+
+
+
 
 
 #if __cplusplus < 201703L
@@ -13,138 +46,128 @@ const char DF_VERSION[] = "beta 1.0.0";
 
 
 
-// == enums ==
-
-constexpr int DF_TYPE_CATEGORY_SHIFT = 10;
-constexpr int DF_TYPE_TYPE_SHIFT = 6;
-constexpr int DF_TYPE_SIZE_SHIFT = 0;
-
-constexpr int DF_TYPE_CATEGORY_MASK = 0xf << DF_TYPE_CATEGORY_SHIFT;
-constexpr int DF_TYPE_TYPE_MASK = 0xf << DF_TYPE_TYPE_SHIFT;
-constexpr int DF_TYPE_SIZE_MASK = 0x3f;
-
-
-enum {
-  DF_TYPE_CATEGORY_SPECIAL = 0 << DF_TYPE_CATEGORY_SHIFT,
-  DF_TYPE_CATEGORY_INT = 1 << DF_TYPE_CATEGORY_SHIFT,
-  DF_TYPE_CATEGORY_FLOAT = 2 << DF_TYPE_CATEGORY_SHIFT,
-  DF_TYPE_CATEGORY_TEXT = 3 << DF_TYPE_CATEGORY_SHIFT,
-  DF_TYPE_CATEGORY_DATE = 4 << DF_TYPE_CATEGORY_SHIFT,
-  DF_TYPE_CATEGORY_BOOLEAN = 5 << DF_TYPE_CATEGORY_SHIFT,
-};
-
-
-typedef enum df_type_t {
-  DF_UNDEFINED = DF_TYPE_CATEGORY_SPECIAL | 0 | 1,
-  DF_POINTER = DF_TYPE_CATEGORY_SPECIAL | 1 | 8,
-  DF_NULL = DF_TYPE_CATEGORY_SPECIAL | 2 | 1,
-
-  DF_UINT8 = DF_TYPE_CATEGORY_INT | 0 << DF_TYPE_TYPE_SHIFT | 1,
-  DF_INT16 = DF_TYPE_CATEGORY_INT | 1 << DF_TYPE_TYPE_SHIFT | 2,
-  DF_INT32 = DF_TYPE_CATEGORY_INT | 2 << DF_TYPE_TYPE_SHIFT | 4,
-  DF_INT64 = DF_TYPE_CATEGORY_INT | 3 << DF_TYPE_TYPE_SHIFT | 8,
-
-  DF_FLOAT32 = DF_TYPE_CATEGORY_FLOAT | 0 << DF_TYPE_TYPE_SHIFT | 4,
-  DF_FLOAT64 = DF_TYPE_CATEGORY_FLOAT | 1 << DF_TYPE_TYPE_SHIFT | 8,
-
-  DF_TEXT = DF_TYPE_CATEGORY_TEXT | 0 << DF_TYPE_TYPE_SHIFT | 32,
-  DF_CATEGORY = DF_TYPE_CATEGORY_TEXT | 1 << DF_TYPE_TYPE_SHIFT | 2,
-
-  DF_DATE = DF_TYPE_CATEGORY_DATE | 0 << DF_TYPE_TYPE_SHIFT | 8,
-  DF_TIME = DF_TYPE_CATEGORY_DATE | 1 << DF_TYPE_TYPE_SHIFT | 8,
-  DF_DATETIME = DF_TYPE_CATEGORY_DATE | 2 << DF_TYPE_TYPE_SHIFT | 8,
-  DF_INTERVAL = DF_TYPE_CATEGORY_DATE | 3 << DF_TYPE_TYPE_SHIFT | 24,
-
-  DF_BOOLEAN = DF_TYPE_CATEGORY_BOOLEAN | 0 << DF_TYPE_TYPE_SHIFT | 1,
-} type;
-
-
-constexpr inline int df_get_type_size(df_type_t type) {
-  return type & DF_TYPE_SIZE_MASK;
-}
-
-constexpr inline int df_get_type_category(df_type_t type) {
-  return type & DF_TYPE_CATEGORY_MASK;
-}
-
-inline const char* df_get_type_string(df_type_t type) {
-  switch (df_get_type_category(type)) {
-    case DF_TYPE_CATEGORY_SPECIAL:
-      switch (type) {
-        case DF_UNDEFINED:    return "UNDEFINED";
-        case DF_POINTER:      return "POINTER";
-        case DF_NULL:         return "NULL";
-      }
-      break;
-    case DF_TYPE_CATEGORY_INT:
-      switch (type) {
-        case DF_UINT8:  return "UINT8";
-        case DF_INT16:  return "INT16";
-        case DF_INT32:  return "INT32";
-        case DF_INT64:  return "INT64";
-      }
-      break;
-    case DF_TYPE_CATEGORY_FLOAT:
-      switch (type) {
-        case DF_FLOAT32: return "FLOAT32";
-        case DF_FLOAT64: return "FLOAT64";
-      }
-      break;
-    case DF_TYPE_CATEGORY_TEXT:
-      switch (type) {
-        case DF_TEXT:     return "TEXT";
-        case DF_CATEGORY: return "CATEGORY";
-      }
-      break;
-    case DF_TYPE_CATEGORY_DATE:
-      switch (type) {
-        case DF_DATE:  return "DATE";
-        case DF_TIME:  return "TIME";
-        case DF_DATETIME:  return "DATETIME";
-      }
-      break;
-    case DF_TYPE_CATEGORY_BOOLEAN:
-      return "BOOLEAN";
-  }
-  return "INVALID_TYPE";
-}
-
-
-
 // == types ==
 
 class df_exception_t;
 
-class df_category_t;
 class df_date_t;
 
-
-template<df_type_t TYPE> class df_raw_t;
-template<df_type_t TYPE> class df_raw_block_t;
-template<df_type_t TYPE> class df_column_t;
-
 class df_object_t;
+class df_column_t;
 class df_dataframe_t;
+
 class df_query_t;
 
 
 
-typedef const char* (*df_c_str_raw_callback)(df_raw_t<DF_UNDEFINED>& raw, char* buffer, size_t buffer_size);
+typedef const char* (*df_byte_cstr_callback)(void* data, char* buffer, size_t buffer_size);
 
 
 
+// == enums ==
 
+constexpr int DF_SIZE_SHIFT = 0x3f;
+constexpr int DF_TYPE_SHIFT = 6;
+constexpr int DF_TYPE_COUNT = 15;
+
+constexpr int DF_MAX_TYPE_SIZE = 32;
+
+
+typedef enum df_type_t {
+  DF_POINTER = 0 << DF_TYPE_SHIFT | 8,
+  DF_NULL = 1 << DF_TYPE_SHIFT | 1,
+
+  DF_UINT8 = 2 << DF_TYPE_SHIFT | 1,
+  DF_INT16 = 3 << DF_TYPE_SHIFT | 2,
+  DF_INT32 = 4 << DF_TYPE_SHIFT | 4,
+  DF_INT64 = 5 << DF_TYPE_SHIFT | 8,
+
+  DF_FLOAT32 = 6 << DF_TYPE_SHIFT | 4,
+  DF_FLOAT64 = 7 << DF_TYPE_SHIFT | 8,
+
+  DF_TEXT = 8 << DF_TYPE_SHIFT | 32,
+  DF_CATEGORY = 9 << DF_TYPE_SHIFT | 2,
+
+  DF_DATE = 10 << DF_TYPE_SHIFT | 8,
+  DF_TIME = 11 << DF_TYPE_SHIFT | 8,
+  DF_DATETIME = 12 << DF_TYPE_SHIFT | 8,
+  DF_INTERVAL = 13 << DF_TYPE_SHIFT | 24,
+
+  DF_BOOL = 14 << DF_TYPE_SHIFT | 1,
+} df_type_t;
+
+
+// template<typename T>
+// struct df_type_get_type {
+//   df_type_t type =
+//     std::is_pointer_v<T> ? DF_POINTER
+
+//     : std::is_same_v<T, uint8_t> ? DF_UINT8
+//     : std::is_same_v<T, short> ? DF_INT16
+//     : std::is_same_v<T, int> ? DF_INT32
+//     : std::is_same_v<T, long> ? DF_INT64
+
+//     : std::is_same_v<T, float> ? DF_FLOAT32
+//     : std::is_same_v<T, double> ? DF_FLOAT64
+
+//     : std::is_same_v<T, std::string> ? DF_TEXT
+//     : std::is_same_v<T, const char*> ? DF_TEXT
+
+//     : std::is_same_v<T, date_t> ? DF_DATETIME
+
+//     : std::is_same_v<T, bool> ? DF_BOOL
+//     : DF_NULL;
+// };
 
 template<typename T>
-T& DF_MAX(T& a, T& b) {
-  return a > b ? a : b;
+df_type_t df_type_get_type = std::is_pointer_v<T> ? DF_POINTER
+
+    : std::is_same_v<T, uint8_t> ? DF_UINT8
+    : std::is_same_v<T, short> ? DF_INT16
+    : std::is_same_v<T, int> ? DF_INT32
+    : std::is_same_v<T, long> ? DF_INT64
+
+    : std::is_same_v<T, float> ? DF_FLOAT32
+    : std::is_same_v<T, double> ? DF_FLOAT64
+
+    : std::is_same_v<T, std::string> ? DF_TEXT
+    : std::is_same_v<T, const char*> ? DF_TEXT
+
+    : std::is_same_v<T, df_date_t> ? DF_DATETIME
+
+    : std::is_same_v<T, bool> ? DF_BOOL
+    : DF_NULL;
+
+
+
+constexpr inline int df_type_get_number(df_type_t type) {
+  return type >> DF_TYPE_SHIFT;
 }
 
-template<typename T>
-T& DF_MIN(T& a, T& b) {
-  return a < b ? a : b;
+constexpr inline int df_type_get_size(df_type_t type) {
+  return type & DF_SIZE_SHIFT;
 }
 
+inline const char* df_type_get_string(df_type_t type) {
+  static const char* TYPE_NAME_LIST[DF_TYPE_COUNT] = {
+    "POINTER", "NULL",
+    "UINT8", "INT16", "INT32", "INT64",
+    "FLOAT32", "FLOAT64",
+    "TEXT", "CATEGORY",
+    "DATE", "TIME", "DATETIME", "INTERVAL",
+    "BOOL"
+  };
+
+  int type_number = df_type_get_number(type);
+  return type_number < DF_TYPE_COUNT ? TYPE_NAME_LIST[type_number] : "INVALID_TYPE";
+}
+
+
+
+
+
+#define DF_MAX(A, B) ((A) > (B) ? (A) : (B))
+#define DF_MIN(A, B) ((A) > (B) ? (A) : (B))
 
 
 
@@ -202,7 +225,7 @@ constexpr char DF_DATETIME_FORMAT[] = "%Y-%m-%d %H:%M:%S";
 
 
 /*
-df_string df_repr(const df_string& s) {
+df_string df_repr_string(const df_string& s) {
   df_string out = "\"";
   for (char c : s) {
     switch (c) {
