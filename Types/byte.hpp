@@ -43,7 +43,7 @@ int df_mem_set_basic(void* mem, SOURCE& value) {
 }
 
 template<>
-int df_mem_set_basic<uint8_t, std::string&>(void* mem, std::string& s) {
+int df_mem_set_basic<uint8_t, const char*>(void* mem, const char* s) {
   long temp;
   sscanf(s, DF_INT_FORMAT, &temp);
   *(uint8_t*)mem = temp;
@@ -51,7 +51,7 @@ int df_mem_set_basic<uint8_t, std::string&>(void* mem, std::string& s) {
 }
 
 template<>
-int df_mem_set_basic<short, std::string&>(void* mem, std::string& s) {
+int df_mem_set_basic<short, const char*>(void* mem, const char* s) {
   long temp;
   sscanf(s, DF_INT_FORMAT, &temp);
   *(short*)mem = temp;
@@ -59,34 +59,26 @@ int df_mem_set_basic<short, std::string&>(void* mem, std::string& s) {
 }
 
 template<>
-int df_mem_set_basic<int, std::string&>(void* mem, std::string& s) {
-  long temp;
-  sscanf(s, DF_INT_FORMAT, &temp);
-  *(int*)mem = temp;
+int df_mem_set_basic<int, const char*>(void* mem, const char* s) {
+  sscanf(s, "%d", mem);
   return 0;
 }
 
 template<>
-int df_mem_set_basic<long, std::string&>(void* mem, std::string& s) {
-  long temp;
-  sscanf(s, DF_INT_FORMAT, &temp);
-  *(long*)mem = temp;
+int df_mem_set_basic<long, const char*>(void* mem, const char* s) {
+  sscanf(s, DF_INT_FORMAT, mem);
   return 0;
 }
 
 template<>
-int df_mem_set_basic<float, std::string&>(void* mem, std::string& s) {
-  double temp;
-  sscanf(s, DF_FLOAT_FORMAT, &temp);
-  *(float*)mem = temp;
+int df_mem_set_basic<float, const char*>(void* mem, const char* s) {
+  sscanf(s, "%f", mem);
   return 0;
 }
 
 template<>
-int df_mem_set_basic<double, std::string&>(void* mem, std::string& s) {
-  double temp;
-  sscanf(s, DF_FLOAT_FORMAT, &temp);
-  *(double*)mem = temp;
+int df_mem_set_basic<double, const char*>(void* mem, const char* s) {
+  sscanf(s, DF_FLOAT_FORMAT, mem);
   return 0;
 }
 
