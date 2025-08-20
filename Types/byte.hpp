@@ -38,6 +38,10 @@ int df_mem_fall_basic(void* mem, DEST& value) {
 
 template<typename DEST, typename SOURCE>
 int df_mem_set_basic(void* mem, SOURCE& value) {
+    if constexpr (std::is_same_v<DEST, std::string>) {
+        ((std::string*)mem)->~basic_string();
+    }
+
     if constexpr (std::is_same_v<SOURCE, const char*>) {
         long temp_long;
         double temp_double;
@@ -95,8 +99,6 @@ int df_mem_set(void* mem, df_type_t type, T& value) {
         df_mem_fall_basic, df_mem_fall_basic, df_mem_fall_basic, df_mem_fall_basic,
         df_mem_set_basic<bool>
     };
-
-    df_mem_release(mem, type);
 
     int type_number = df_type_get_number(type);
     if (type_number >= DF_TYPE_COUNT) {
