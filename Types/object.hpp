@@ -41,9 +41,7 @@ public:
       return;
     }
 
-    if (type == DF_TEXT) {
-      ((std::string*)data)->~basic_string();
-    }
+    df_mem_release(data, type);
     free(data);
   }
 
@@ -52,15 +50,20 @@ public:
     df_debug1("create object (%s)", df_type_get_string(df_type_get_type<T>));
 
     init(df_type_get_type<T>);
-    *(T*)data = value;
+    new (data) T(value);
   }
 
 
   template<typename T>
   df_object_t& operator=(T& value) {
-    if (!owns_data && type != df_type_get_type<T>) {
-      df_debug6("couldn't set object as different types when targeting dataframe or column!");
-      return *this;
+    if (type != df_type_get_type<T>) {
+      if (!owns_data) {
+        df_debug6("couldn't set object as different types when targeting dataframe or column!");
+        return *this;
+      }
+
+      df_mem_release(data, type);
+      type = df_type_get_type<T>;
     }
 
     df_mem_set(data, type, value);
