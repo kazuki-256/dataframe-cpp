@@ -47,7 +47,7 @@ size_t df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
 
     // == start parse ==
 
-    while (symbol = *(fmt++)) {
+    while ((symbol = *fmt++) != 0) {
         // == filter ==
         // symbol is normal char: clear anything not suit to fmt
         if (symbol != '%') {
@@ -169,7 +169,7 @@ size_t df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
                 }
                 continue;
             case 'z':
-                sscanf(strdate, "%05ld", tm->tm_gmtoff);
+                sscanf(strdate, "%05ld", &tm->tm_gmtoff);
                 tm->tm_gmtoff = (tm->tm_gmtoff / 100 * 3600) + (tm->tm_gmtoff % 100 * 60);
                 temp = 5;
                 goto label_pass;
@@ -225,7 +225,7 @@ public:
 
     days = 0;
 
-    while (c = *p) {
+    while ((c = *p)) {
         while (c != '\0' && isspace(c)) c = *(p++);
         if (c == '\0') {
             return;
@@ -295,6 +295,10 @@ public:
     snprintf(buffer, buffer_size, "df_interval_t(%d years, %d months, %d days, %d hours, %d mintues, %d seconds)",
         years, months, days, hours, minutes, seconds);
     return buffer;
+  }
+
+  operator std::string() const {
+    return std::string(c_str());
   }
 };
 

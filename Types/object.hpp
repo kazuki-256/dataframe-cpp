@@ -12,20 +12,34 @@
 
 
 
+class df_null_t {
+public:
+  df_null_t() {};
+} DF_NULL;
+
+
 
 
 
 class df_object_t {
+  friend class df_mem_block_t;
+  friend class df_column_t;
+  
   void* mem;
   df_type_t type;
   bool owns_mem;
   std::vector<std::string>* category_titles;
 
-  df_object_t(void* target, df_type_t target_type) {
+  df_object_t() {
+    category_titles = NULL;
+  }
+
+  inline void set_target(void* target, df_type_t target_type) {
     mem = target;
     type = target_type;
     owns_mem = false;
   }
+
 
   inline void init(df_type_t as_type) {
     type = as_type;
@@ -69,6 +83,13 @@ public:
     new (mem) T(value);
   }
 
+  df_object_t(const char* value) {
+    df_debug2("create object %s", df_type_get_string(df_type_get_type<T>));
+
+    init(DF_TYPE_TEXT);
+    new (mem) df_string_t(value);
+  }
+
   df_object_t(const char*&) = delete;
 
 
@@ -84,13 +105,13 @@ public:
   }
 
   df_object_t& operator=(const char* value) {
-    if (handle_type(DF_TEXT)) {
+    if (handle_type(DF_TYPE_TEXT)) {
       df_debug6("couldn't set object as different types when targeting dataframe or column!");
       return *this;
     }
 
     df_string_t str = value;
-    df_mem_convert(&str, DF_TEXT, mem, type);
+    df_mem_convert(&str, DF_TYPE_TEXT, mem, type);
     return *this;
   }
 
@@ -107,6 +128,14 @@ public:
     T output;
     df_mem_convert(mem, type, &output, df_type_get_type<T>);
     return output;
+  }
+
+  operator std::string() const {
+    df_debug2("format %s -> TEXT", df_type_get_string(type));
+
+    df_string_t output;
+    df_mem_convert(mem, type, &output, DF_TYPE_TEXT);
+    return output.value_or("null");
   }
 
   df_type_t get_type() const {

@@ -104,63 +104,68 @@ typedef enum df_type_id_t {
 
 
 typedef enum df_type_t {
-  DF_POINTER = DF_TYPEID_POINTER << DF_TYPE_SHIFT | 8,    // void*
-  DF_NULL = DF_TYPEID_NULL << DF_TYPE_SHIFT | 1,          // df_null_t
+  DF_TYPE_POINTER = DF_TYPEID_POINTER << DF_TYPE_SHIFT | 8,    // void*
+  DF_TYPE_NULL = DF_TYPEID_NULL << DF_TYPE_SHIFT | 1,          // df_null_t
 
-  DF_UINT8 = DF_TYPEID_UINT8 << DF_TYPE_SHIFT | 1,        // uint8_t
-  DF_INT16 = DF_TYPEID_INT16 << DF_TYPE_SHIFT | 2,        // short
-  DF_INT32 = DF_TYPEID_INT32 << DF_TYPE_SHIFT | 4,        // int
-  DF_INT64 = DF_TYPEID_INT64 << DF_TYPE_SHIFT | 8,        // long
+  DF_TYPE_UINT8 = DF_TYPEID_UINT8 << DF_TYPE_SHIFT | 1,        // uint8_t
+  DF_TYPE_INT16 = DF_TYPEID_INT16 << DF_TYPE_SHIFT | 2,        // short
+  DF_TYPE_INT32 = DF_TYPEID_INT32 << DF_TYPE_SHIFT | 4,        // int
+  DF_TYPE_INT64 = DF_TYPEID_INT64 << DF_TYPE_SHIFT | 8,        // long
 
-  DF_FLOAT32 = DF_TYPEID_FLOAT32 << DF_TYPE_SHIFT | 4,    // float
-  DF_FLOAT64 = DF_TYPEID_FLOAT64 << DF_TYPE_SHIFT | 8,    // double
+  DF_TYPE_FLOAT32 = DF_TYPEID_FLOAT32 << DF_TYPE_SHIFT | 4,    // float
+  DF_TYPE_FLOAT64 = DF_TYPEID_FLOAT64 << DF_TYPE_SHIFT | 8,    // double
 
-  DF_TEXT = DF_TYPEID_TEXT << DF_TYPE_SHIFT | 32,         // std::optional<std::string>
-  DF_CATEGORY = DF_TYPEID_CATEGORY << DF_TYPE_SHIFT | 2,  // int
+  DF_TYPE_TEXT = DF_TYPEID_TEXT << DF_TYPE_SHIFT | 32,         // std::optional<std::string>
+  DF_TYPE_CATEGORY = DF_TYPEID_CATEGORY << DF_TYPE_SHIFT | 2,  // int
 
-  DF_DATE = DF_TYPEID_DATE << DF_TYPE_SHIFT | 8,          // df_date_t
-  DF_TIME = DF_TYPEID_TIME << DF_TYPE_SHIFT | 8,          // df_date_t
-  DF_DATETIME = DF_TYPEID_DATETIME << DF_TYPE_SHIFT | 8,  // df_date_t
-  DF_INTERVAL = DF_TYPEID_INTERVAL << DF_TYPE_SHIFT | 24, // df_interval_t
+  DF_TYPE_DATE = DF_TYPEID_DATE << DF_TYPE_SHIFT | 8,          // df_date_t
+  DF_TYPE_TIME = DF_TYPEID_TIME << DF_TYPE_SHIFT | 8,          // df_date_t
+  DF_TYPE_DATETIME = DF_TYPEID_DATETIME << DF_TYPE_SHIFT | 8,  // df_date_t
+  DF_TYPE_INTERVAL = DF_TYPEID_INTERVAL << DF_TYPE_SHIFT | 24, // df_interval_t
 
-  DF_BOOL = DF_TYPEID_BOOL << DF_TYPE_SHIFT | 1,          // bool
+  DF_TYPE_BOOL = DF_TYPEID_BOOL << DF_TYPE_SHIFT | 1,          // bool
 } df_type_t;
 
 
 template<typename T>
 df_type_t df_type_get_type =
-    std::is_same_v<T, std::string> ? DF_TEXT
-    : std::is_same_v<T, const char*> ? DF_TEXT
+    std::is_same_v<T, df_string_t> ? DF_TYPE_TEXT
+    : std::is_same_v<T, std::string> ? DF_TYPE_TEXT
+    : std::is_same_v<T, const char*> ? DF_TYPE_TEXT
 
-    : std::is_pointer_v<T> ? DF_POINTER
+    : std::is_pointer_v<T> ? DF_TYPE_POINTER
 
-    : std::is_same_v<T, uint8_t> ? DF_UINT8
-    : std::is_same_v<T, short> ? DF_INT16
-    : std::is_same_v<T, int> ? DF_INT32
-    : std::is_same_v<T, long> ? DF_INT64
+    : std::is_same_v<T, uint8_t> ? DF_TYPE_UINT8
+    : std::is_same_v<T, short> ? DF_TYPE_INT16
+    : std::is_same_v<T, int> ? DF_TYPE_INT32
+    : std::is_same_v<T, long> ? DF_TYPE_INT64
 
-    : std::is_same_v<T, float> ? DF_FLOAT32
-    : std::is_same_v<T, double> ? DF_FLOAT64
+    : std::is_same_v<T, float> ? DF_TYPE_FLOAT32
+    : std::is_same_v<T, double> ? DF_TYPE_FLOAT64
 
-    : std::is_same_v<T, df_date_t> ? DF_DATETIME
+    : std::is_same_v<T, df_date_t> ? DF_TYPE_DATETIME
 
-    : std::is_same_v<T, bool> ? DF_BOOL
-    : DF_NULL;
+    : std::is_same_v<T, bool> ? DF_TYPE_BOOL
+    : DF_TYPE_NULL;
 
 
 
 
 constexpr inline bool df_type_is_struct(df_type_t type) {
-  return type == DF_TEXT;
+  return type == DF_TYPE_TEXT;
 }
 
-constexpr inline int df_type_get_typeid(df_type_t type) {
-  return type >> DF_TYPE_SHIFT;
+constexpr inline bool df_type_is_struct(df_type_id_t type) {
+  return type == DF_TYPEID_TEXT;
+}
+
+constexpr inline df_type_id_t df_type_get_typeid(df_type_t type) {
+  return (df_type_id_t)(type >> DF_TYPE_SHIFT);
 }
 
 constexpr inline bool df_type_is_number(df_type_t type) {
   int type_id = df_type_get_typeid(type);
-  return (type_id >= DF_TYPEID_UINT8 && type_id <= DF_TYPEID_FLOAT64) || type == DF_BOOL;
+  return (type_id >= DF_TYPEID_UINT8 && type_id <= DF_TYPEID_FLOAT64) || type == DF_TYPE_BOOL;
 }
 
 constexpr inline int df_type_get_size(df_type_t type) {
