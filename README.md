@@ -28,22 +28,22 @@ Currently, this API stills in making the df_data_frame object, but the main.cpp 
 
 int main(int argc, char** argv) {
   // == read data ==
-  df_data_frame_t staff = df_read_csv("staffs.csv");
-  df_data_frame_t job = df_read_csv("job.csv");
+  df_dataframe_t staff = df_read_csv("staffs.csv");
+  df_dataframe_t job = df_read_csv("job.csv");
 
   // == data processing ==
 
   df_dataframe_t df1 = staff.as("staff")      // before to write SQL, you can give your table a name, or start without name (column name only)
-            .select("staff.id, staff.name, job.title, job.hourly * staff.worked AS salary")    // select data, just like SQL
-            .join(job, "job", "staff.job_id = job.id")      // join other table as "job" by same job id
-            .where("salary > 100000")                       // filter
-            .order_by("salary", -1);                        // sort the output by desc 
+          .select("staff.id, staff.name, job.title, job.hourly * staff.worked AS salary")    // select data, just like SQL
+           .join(job, "job", "staff.job_id = job.id")      // join other table as "job" by same job id
+           .where("salary > 100000")                       // filter
+           .order_by("salary", -1);                        // sort the output by desc 
 
   df_dataframe_t df2 = staff.as("staff")
-            .select("job.job_title, AVG(staff.worked * job.hourly), count")
-            .join(job, "job", "staff.job_id == job.id")
-            .group_by("job.title")                             // group by job.title
-            .mutate("COUNT(*) AS count");                      // also, you can define variables by mutate
+           .select("job.job_title, AVG(staff.worked * job.hourly), count")
+           .join(job, "job", "staff.job_id == job.id")
+           .group_by("job.title")                             // group by job.title
+           .mutate("COUNT(*) AS count");                      // also, you can define variables by mutate
 
   // == vector processing ==
   df_column_t yearly = df1["salary"] * 12;
