@@ -366,6 +366,10 @@ public:
         return t;
     }
 
+    operator std::string() const {
+        return std::string(c_str());
+    }
+
     const char* c_str(const char* fmt = DF_DATETIME_FORMAT, char* buffer = DF_STATIC_BUFFER, size_t buffer_size = DF_STATIC_BUFFER_LENGTH) const {
         struct tm* tm = localtime(&t);
         strftime(buffer, buffer_size, fmt, tm);

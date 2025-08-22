@@ -18,59 +18,62 @@
 
 
 
-class df_process;
-template<typename object_t> class df_column;
+// ==== df_mem_block_t ====
 
+class df_mem_block_t : TLinkable {
+  friend class df_column_t;
 
-
-// ==== df_object_chunk ====
-
-template<typename object_t>
-class df_object_chunk : TLinkable {
-  template<typename T> friend class df_column;
-
-  df_object<object_t>* objects;
   int usage;
   int capacity;
+  df_type_t type;
 
-
-  inline void init(int _capacity);
-
-
+  ///////
   // create block without any settings
-  df_object_chunk(int capacity);
+  df_mem_block_t(df_type_t type, int capacity) {
+    this->type = type;
+    this->capacity = capacity;
+  }
+
+
+  static df_mem_block_t* create(df_type_t type, int size) {
+    void* mem = malloc(sizeof(df_mem_block_t) + size * df_type_get_size(type));
+    return new (mem) df_mem_block_t(type, size);
+  }
+
 
 
 
   // copy for other array
-  void fill(int start, const df_object<object_t>* source_objects, int length);
+  void fill(int start, const void* source_objects, int length);
 
-  void fill(int start, const std::initializer_list<df_object<object_t>>& source_objects);
+  void fill(int start, const std::initializer_list<df_object_t>& source_objects);
 
-  inline void release_objects_only();
-
-
-  inline void from_move(df_object_chunk& other);
+  inline void* get_start() const {
+    return (void*)this + sizeof(df_mem_block_t);
+  }
 
 public:
-  ~df_object_chunk();
+  ~df_mem_block_t() {
+    if (!df_type_is_struct(type)) {
+      return;
+    }
 
-
-  df_object_chunk();
-
+    if (type == DF_TEXT) {
+      for (df_string_t* p = (df_string_t*)get_start(), *END = p + usage; p < END; p++) {
+        p->reset();
+      }
+      return;
+    }
+    df_debug6("deleting unknown structed type");
+  }
 
   // == move ==
-
-  df_object_chunk(df_object_chunk&& other);
-
-  df_object_chunk& operator=(df_object_chunk&& other);
-
+  df_mem_block_t(df_mem_block_t&& other) = delete;
+  df_mem_block_t& operator=(df_mem_block_t&& other) = delete;
 
   // == copy ==
-
-  df_object_chunk(const df_object_chunk& other);
-
-  df_object_chunk operator=(const df_object_chunk& other) noexcept;
+  df_mem_block_t(const df_mem_block_t& other) = delete;
+  df_mem_block_t operator=(const df_mem_block_t& other) = delete;
 };
 
 
@@ -78,49 +81,42 @@ public:
 
 
 
-// ==== df_column ==
+// ==== df_column_t ==
 
-template<typename object_t = DF_DEFAULT_TYPE>
-class df_column {
-  template<typename T> friend class df_column;
-
-  TLinkableList<df_object_chunk<object_t>> chunks;
+class df_column_t {
+  TLinkableList<df_mem_block_t> chunks;
   int length;
   uint8_t type;
 
-  std::set<df_column<object_t>*> be_foregined;  // SQL foregined by who (not usable)
-  df_column<object_t>* foregin_to = NULL;       // SQL foregin key (not usable)
+  std::set<df_column_t*> be_foregined;  // SQL foregined by who (not usable)
+  df_column_t* foregin_to = NULL;       // SQL foregin key (not usable)
 
   
-  df_object<object_t>& get_object_at(int index) const;
+  df_object_t& get_object_at(int index) const;
 
-  df_object_chunk<object_t>* extend_chunk(int size, int* lessing_size = DF_DEFAULT_RETURN_POINTER);
+  df_mem_block_t* extend_chunk(int size, int* lessing_size);
 
 
   template<typename T>
-  void typed_merge(const df_column<T>& other);
+  void typed_merge(const df_column_t& other);
 
 
 
 public:
 
-  ~df_column() noexcept(false);
+  ~df_column_t() noexcept(false);
 
 
-
-  df_column(const std::initializer_list<df_object<object_t>>& objects);
-
-
-  df_column(int capacity = 0);
+  df_column_t(const std::initializer_list<df_object_t>& objects);
 
     // advaned constructor
-  df_column(df_type objtype, int capacity = 0);
+  df_column_t(df_type_t objtype, int capacity = 0);
 
 
   
   // === get information ===
 
-  inline df_type get_type() const;
+  inline df_type_t get_type() const;
 
   inline int get_chunk_count() const;
 
@@ -132,7 +128,7 @@ public:
 
   class iterator;
 
-  class const_iterator : public iterator;
+  class const_iterator;
 
 
   inline iterator begin();
@@ -149,89 +145,80 @@ public:
 
   // == move ==
 
-  df_column(df_column&& src);
+  df_column_t(df_column_t&& src);
 
-  df_column& operator=(df_column&& src);
+  df_column_t& operator=(df_column_t&& src);
 
   // == copy ==
 
-  df_column(const df_column& src);
+  df_column_t(const df_column_t& src);
 
-  df_column operator=(const df_column& src);
-
-
-  // == cast ==
-
-  template<typename Dest>
-  operator df_column<Dest>&();
-
-  template<typename Dest>
-  operator const df_column<Dest>&() const;
+  df_column_t operator=(const df_column_t& src);
 
 
 
   // == set_foregin ==
 
-  df_column& set_foregin(df_column* column);
+  df_column_t& set_foregin(df_column_t* column);
 
 
   // == add_object ==
 
-  df_column& add_object(const df_object<object_t>& object);
+  df_column_t& add_object(const df_object_t& object);
 
-  df_column& add_object(df_object<object_t>&& object);
+  df_column_t& add_object(df_object_t&& object);
 
 
   // == get_object ==
 
-  inline const df_object<object_t>& operator[](int index) const;
+  inline const df_object_t& operator[](int index) const;
 
-  inline df_object<object_t>& operator[](int index);
+  inline df_object_t& operator[](int index);
 
 
 
   // == merge ==
 
   template<typename other_t>
-  df_column<object_t>& merge_with(const df_column<other_t>& other);
+  df_column_t& merge_with(const df_column_t& other);
 
   template<typename other_t>
-  df_column<object_t> merge_to(const df_column<other_t>& other) const;
-
+  df_column_t merge_to(const df_column_t& other) const;
 
 
   // == print ==
 
   std::ostream& write_stream(std::ostream& os, const char* colname) const;
 
-  friend std::ostream& operator<<(std::ostream& os, const df_column<object_t>& col);
+  friend std::ostream& operator<<(std::ostream& os, const df_column_t& column);
+
 
 
   // == SQL ==
 
-  df_process as(const char* name) const;
+  df_query_t as(const char* name) const;
 
 
   // == vector ==
 
-  df_process operator+(int num) const;
-  df_process operator+(df_number num) const;
+  df_query_t operator+(long num) const;
+  df_query_t operator+(double num) const;
 
-  df_process operator-(int num) const;
-  df_process operator-(df_number num) const;
+  df_query_t operator-(long num) const;
+  df_query_t operator-(double num) const;
 
-  df_process operator*(int num) const;
-  df_process operator*(df_number num) const;
+  df_query_t operator*(long num) const;
+  df_query_t operator*(double num) const;
   
-  df_process operator/(int num) const;
-  df_process operator/(df_number num) const;
+  df_query_t operator/(long num) const;
+  df_query_t operator/(double num) const;
   
-  df_process operator%(int num) const;
-  df_process operator%(df_number num) const;
+  df_query_t operator%(long num) const;
+  df_query_t operator%(double num) const;
 
   // also in Math.hpp
-  // df_process& DfSqrt(df_process)
-  // df_process& DfAvg(df_process)
+  // df_query_t& DfSqrt(df_query_t)
+  // df_query_t& DfAvg(df_query_t)
   // ...
 };
 
