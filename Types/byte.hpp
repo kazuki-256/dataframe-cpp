@@ -10,6 +10,30 @@
 #endif
 
 
+
+// == df_value_t ==
+
+typedef union df_value_t {
+    void*   as_pointer;
+
+    uint8_t as_uint8;
+    short   as_uint16;
+    int     as_int32;
+    long    as_int64;
+
+    float   as_float32;
+    double  as_float64;
+
+    df_string_t* as_string;
+
+    df_date_t as_datetime;
+
+    bool as_bool;
+} df_value_t;
+
+
+
+
 using df_mem_callback1_t = bool (*)(const void* mem);
 using df_mem_callback2_t = void (*)(const void* src, void* dest);
 
