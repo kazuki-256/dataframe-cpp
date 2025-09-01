@@ -316,8 +316,9 @@ void df_value_write_long_string(const df_value_t& value, void* dest) {
         return;
     }
     
-    str.emplace(32, '\0');
-    snprintf(str->data(), str->capacity(), DF_INT64_FORMAT, value.as_long);
+    if (!str.has_value()) str.emplace();
+    str->resize(32, '\0');
+    str->resize(snprintf(str->data(), str->size(), DF_INT64_FORMAT, value.as_long));
 }
 
 
@@ -363,11 +364,11 @@ void df_value_write_double_float(const df_value_t& value, void* dest) {
         *(int*)dest = DF_NULL_FLOAT32;
         return;
     }
-    *(float*)dest = value.as_long;
+    *(float*)dest = value.as_double;
 }
 
 void df_value_write_double_double(const df_value_t& value, void* dest) {
-    *(double*)dest = value.as_long;
+    *(double*)dest = value.as_double;
 }
 
 
@@ -380,8 +381,9 @@ void df_value_write_double_string(const df_value_t& value, void* dest) {
         return;
     }
     
-    str.emplace(32, '\0');
-    snprintf(str->data(), str->capacity(), DF_FLOAT64_FORMAT, value.as_long);
+    if (!str.has_value()) str.emplace();
+    str->resize(32, '\0');
+    str->resize(snprintf(str->data(), str->size(), DF_FLOAT64_FORMAT, value.as_double));
 }
 
 

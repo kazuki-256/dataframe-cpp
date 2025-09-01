@@ -9,6 +9,7 @@ features:
 
 */
 
+#include <iostream>
 #ifndef _DF_TYPE_OBJECT_HPP_
 #define _DF_TYPE_OBJECT_HPP_
 
@@ -95,6 +96,7 @@ public:
   }
 
   df_object_t(const char*&) = delete;
+  df_object_t(const df_object_t&) = delete;
 
 
 
@@ -120,7 +122,7 @@ public:
     return *this;
   }
 
-  df_object_t operator=(const df_object_t other) {
+  df_object_t& operator=(const df_object_t& other) {
     df_value_write(other.value, other.data_type, memory, data_type);
     df_value_load(value, memory, data_type);
     return *this;
