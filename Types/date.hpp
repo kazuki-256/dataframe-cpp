@@ -309,7 +309,7 @@ class df_date_t {
   time_t t;
 
 public:
-    df_date_t(time_t _t = DF_NULL_DATE) { t = _t; }
+    df_date_t(time_t _t = DF_NULL_DATETIME) { t = _t; }
 
     df_date_t(const char* strdate, const char* fmt = DF_DATETIME_FORMAT) {
         struct tm tm{};

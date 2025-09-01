@@ -51,6 +51,8 @@ const char DF_VERSION[] = "beta 1.0.0";
 
 // == types ==
 
+typedef union df_value_t df_value_t;
+
 class df_exception_t;
 
 class df_date_t;
@@ -124,6 +126,14 @@ typedef enum df_type_t {
   DF_TYPE_INTERVAL = DF_TYPEID_INTERVAL << DF_TYPE_SHIFT | 24, // df_interval_t
 
   DF_TYPE_BOOL = DF_TYPEID_BOOL << DF_TYPE_SHIFT | 1,          // bool
+
+  // == alias ==
+
+  DF_TYPE_SHORT = DF_TYPE_INT16,
+  DF_TYPE_INT = DF_TYPE_INT32,
+  DF_TYPE_LONG = DF_TYPE_INT64,
+
+  DF_TYPE_STRING = DF_TYPE_TEXT,
 } df_type_t;
 
 
@@ -175,8 +185,8 @@ constexpr inline int df_type_get_size(df_type_t type) {
 inline const char* df_type_get_string(df_type_t type) {
   static const char* TYPE_NAME_LIST[DF_TYPE_COUNT] = {
     "POINTER", "NULL",
-    "UINT8", "INT16", "INT32", "INT64",
-    "FLOAT32", "FLOAT64",
+    "UINT8", "SHORT", "INT", "LONG",
+    "FLOAT", "DOUBLE",
     "TEXT", "CATEGORY",
     "DATE", "TIME", "DATETIME", "INTERVAL",
     "BOOL"
@@ -200,30 +210,32 @@ inline const char* df_type_get_string(df_type_t type) {
 
 // == value information ==
 
-constexpr uint8_t DF_NULL_UINT8 = 255;
-constexpr uint8_t DF_MIN_UINT8 = 0;
-constexpr uint8_t DF_MAX_UINT8 = 254;
+#define DF_NULL_POINTER 0x0
 
-constexpr short DF_NULL_INT16 = -32768;
-constexpr short DF_MIN_INT16 = -32767;
-constexpr short DF_MAX_INT16 = 32767;
+#define DF_NULL_UINT8 0xff
+#define DF_MIN_UINT8  0x0
+#define DF_MAX_UINT8  0xfe
 
-constexpr int DF_NULL_INT32 = -2147483648;
-constexpr int DF_MIN_INT32 = -2147483647;
-constexpr int DF_MAX_INT32 = 2147483647;
+#define DF_NULL_INT16 0x8000
+#define DF_MIN_INT16  0x8001
+#define DF_MAX_INT16  0x7fff
 
-constexpr long DF_NULL_INT64 = 0x8000000000000000;
-constexpr long DF_MIN_INT64 = 0x8000000000000001;
-constexpr long DF_MAX_INT64 = 0x7fffffffffffffff;
+#define DF_NULL_INT32 0x80000000
+#define DF_MIN_INT32  0x80000001
+#define DF_MAX_INT32  0x7fffffff
 
-constexpr float DF_NULL_FLOAT32 = NAN;
-constexpr double DF_NULL_FLOAT64 = NAN;
+#define DF_NULL_INT64 0x8000000000000000
+#define DF_MIN_INT64  0x8000000000000001
+#define DF_MAX_INT64  0x7fffffffffffffff
 
-constexpr time_t DF_NULL_DATE = DF_NULL_INT64;
-constexpr time_t DF_MIN_DATE = DF_MIN_INT64;
-constexpr time_t DF_MAX_DATE = DF_MAX_INT64;
+#define DF_NULL_FLOAT32 0x7FC00000
+#define DF_NULL_FLOAT64 0x7ff8000000000000
 
-constexpr uint8_t DF_NULL_BOOL = DF_NULL_UINT8;
+#define DF_NULL_CATEGORY DF_NULL_INT32
+
+#define DF_NULL_DATETIME DF_NULL_INT64
+
+#define DF_NULL_BOOL DF_NULL_UINT8
 
 
 

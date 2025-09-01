@@ -51,8 +51,13 @@ class df_mem_block_t : TLinkable {
   void fill_unsafe(int start, const uint8_t* src, df_type_t src_type, int length) {
     const int DATA_SIZE = df_type_get_size(type);
 
-    df_mem_callback2_t convertor = DF_MEM_CONVERT_TABLE[df_type_get_typeid(type)][df_type_get_typeid(src_type)];
-    if (convertor == NULL) {
+    df_value_load_callback_t loader =
+      DF_VALUE_LOAD_CALLBACKS[df_type_get_typeid(src_type)];
+
+    df_value_write_callback_t writer =
+      DF_VALUE_WRITE_CALLBACKS[df_type_get_typeid(type)][df_type_get_typeid(src_type)];
+    
+    if (loader == NULL || writer == NULL) {
       df_debug6("invalid convert: %s -> %s", df_type_get_string(type), df_type_get_string(src_type));
       return;
     }
@@ -61,7 +66,10 @@ class df_mem_block_t : TLinkable {
     uint8_t* end = dest + length * DATA_SIZE;
 
     for (; dest < end; dest += DATA_SIZE, src += DATA_SIZE) {
-      convertor(src, dest);
+      df_value_t value;
+      loader(value, (void*)src);
+
+      writer(value, dest);
     }
     usage = DF_MAX(usage, start + length);
   }
@@ -69,22 +77,21 @@ class df_mem_block_t : TLinkable {
   void fill_unsafe(int start, const std::initializer_list<df_object_t>& source_objects) {
     const int DATA_SIZE = df_type_get_size(type);
 
-    df_mem_callback2_t convertor = DF_MEM_CONVERT_TABLE[df_type_get_typeid(type)][df_type_get_typeid(type)];
-    if (convertor == NULL) {
-      df_debug6("invalid convert: %s -> %s", df_type_get_string(type), df_type_get_string(type));
-      return;
-    }
+    df_value_
 
     uint8_t* dest = (uint8_t*)get_start() + start * DATA_SIZE;
     for (const df_object_t& object : source_objects) {
       if (object.type != type) {
         df_debug3("detacted initing %s object in %s column, auto converting...", df_type_get_string(object.type), df_type_get_string(type));
-        df_mem_convert(object.mem, object.type, dest, type);
-        dest += DATA_SIZE;
-        continue;
       }
 
       convertor(object.mem, dest);
+      df_value_write_callback_t writer = writers[df_type_get_typeid(object.type)];
+
+      if (convertor == NULL) {
+        df_debug6("invalid convert: %s -> %s", df_type_get_string(type), df_type_get_string(type));
+        return;
+      }
       dest += DATA_SIZE;
     }
     usage = DF_MAX(usage, start + source_objects.size());
