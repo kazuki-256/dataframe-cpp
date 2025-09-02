@@ -21,6 +21,7 @@ typedef union df_value_t {
 
     long as_long;
     double as_double;
+    df_date_t as_date;
 
     df_value_t() : as_long(0) {};
     ~df_value_t() {};
@@ -33,18 +34,24 @@ typedef union df_value_t {
 // ==== df_value_t release function ====
 
 // just release, not free the pointer
-void df_value_release(df_value_t& value, df_type_t type) {
+inline void df_value_release(df_value_t& value, df_type_t type) {
     if (type == DF_TYPE_TEXT) {
         value.as_string->reset();
     }
 }
 
+ 
+inline void df_value_release_string_mem(void* mem) {
+    ((df_string_t*)mem)->reset();
+}
+
 // just release, not free the pointer
-void df_value_release_mem(void* mem, df_type_t type) {
+inline void df_value_release_mem(void* mem, df_type_t type) {
     if (type == DF_TYPE_TEXT) {
-        ((df_string_t*)mem)->reset();
+        df_value_release_string_mem(mem);
     }
 }
+
 
 
 
@@ -137,9 +144,9 @@ df_value_load_callback_t DF_VALUE_LOAD_CALLBACKS[DF_TYPE_COUNT] = {
 void df_value_load(df_value_t& value, void* src, df_type_t type) {
     df_error_if_null_pointer(src, );
 
-    df_type_id_t type_id = df_type_get_typeid(type);
+    const int TYPE_ID = df_type_get_typeid(type);
 
-    df_value_load_callback_t callback = DF_VALUE_LOAD_CALLBACKS[type_id];
+    df_value_load_callback_t callback = DF_VALUE_LOAD_CALLBACKS[TYPE_ID];
     if (callback == NULL) {
         df_debug6("invalid load for type %s", df_type_get_string(type));
         return;
@@ -455,8 +462,62 @@ void df_value_write_string_double(const df_value_t& value, void* dest) {
 
 
 
+void df_value_write_string_date(const df_value_t& value, void* dest) {
+    df_string_t& str = *value.as_string;
+
+    if (str.has_value()) {
+        ((df_date_t*)dest)->parse_date(str->c_str(), DF_DATE_FORMAT);
+        return;
+    }
+    *(long*)dest = DF_NULL_DATETIME;
+}
+
+void df_value_write_string_time(const df_value_t& value, void* dest) {
+    df_string_t& str = *value.as_string;
+
+    if (str.has_value()) {
+        ((df_date_t*)dest)->parse_date(str->c_str(), DF_TIME_FORMAT);
+        return;
+    }
+    *(long*)dest = DF_NULL_DATETIME;
+}
+
+void df_value_write_string_datetime(const df_value_t& value, void* dest) {
+    df_string_t& str = *value.as_string;
+
+    if (str.has_value()) {
+        ((df_date_t*)dest)->parse_date(str->c_str(), DF_DATETIME_FORMAT);
+        return;
+    }
+    *(long*)dest = DF_NULL_DATETIME;
+}
+
+
+
 void df_value_write_string_string(const df_value_t& value, void* dest) {
     *(df_string_t*)dest = *value.as_string;
+}
+
+
+
+// == date, time, datetime to text ==
+
+void df_value_write_date_string(const df_value_t& value, void* dest) {
+    df_string_t& str = *(df_string_t*)dest;
+    str.emplace(32, '\0');
+    value.as_date.c_str(DF_DATE_FORMAT, str->data());
+}
+
+void df_value_write_time_string(const df_value_t& value, void* dest) {
+    df_string_t& str = *(df_string_t*)dest;
+    str.emplace(32, '\0');
+    value.as_date.c_str(DF_TIME_FORMAT, str->data());
+}
+
+void df_value_write_datetime_string(const df_value_t& value, void* dest) {
+    df_string_t& str = *(df_string_t*)dest;
+    str.emplace(32, '\0');
+    value.as_date.c_str(DF_DATETIME_FORMAT, str->data());
 }
 
 
@@ -547,7 +608,7 @@ df_value_write_callback_t DF_VALUE_WRITE_CALLBACKS[DF_TYPE_COUNT][DF_TYPE_COUNT]
         df_value_write_string_uint8, df_value_write_string_short, df_value_write_string_int, df_value_write_string_long,
         df_value_write_string_float, df_value_write_string_double,
         df_value_write_string_string, NULL,
-        NULL, NULL, NULL, NULL,
+        df_value_write_string_date, df_value_write_string_time, df_value_write_string_datetime, NULL,
         df_value_write_string_uint8
     },
     // CATEGORY ->
@@ -564,7 +625,7 @@ df_value_write_callback_t DF_VALUE_WRITE_CALLBACKS[DF_TYPE_COUNT][DF_TYPE_COUNT]
         NULL, NULL,
         df_value_write_long_uint8, df_value_write_long_short, df_value_write_long_int, df_value_write_long_long,
         df_value_write_long_float, df_value_write_long_double,
-        df_value_write_long_string, NULL,
+        df_value_write_date_string, NULL,
         df_value_write_long_long, df_value_write_long_long, df_value_write_long_long, NULL,
         df_value_write_long_uint8
     },
@@ -573,7 +634,7 @@ df_value_write_callback_t DF_VALUE_WRITE_CALLBACKS[DF_TYPE_COUNT][DF_TYPE_COUNT]
         NULL, NULL,
         df_value_write_long_uint8, df_value_write_long_short, df_value_write_long_int, df_value_write_long_long,
         df_value_write_long_float, df_value_write_long_double,
-        df_value_write_long_string, NULL,
+        df_value_write_time_string, NULL,
         df_value_write_long_long, df_value_write_long_long, df_value_write_long_long, NULL,
         df_value_write_long_uint8
     },
@@ -582,7 +643,7 @@ df_value_write_callback_t DF_VALUE_WRITE_CALLBACKS[DF_TYPE_COUNT][DF_TYPE_COUNT]
         NULL, NULL,
         df_value_write_long_uint8, df_value_write_long_short, df_value_write_long_int, df_value_write_long_long,
         df_value_write_long_float, df_value_write_long_double,
-        df_value_write_long_string, NULL,
+        df_value_write_datetime_string, NULL,
         df_value_write_long_long, df_value_write_long_long, df_value_write_long_long, NULL,
         df_value_write_long_uint8
     },

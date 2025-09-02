@@ -169,8 +169,8 @@ constexpr inline bool df_type_is_struct(df_type_id_t type) {
   return type == DF_TYPEID_TEXT;
 }
 
-constexpr inline df_type_id_t df_type_get_typeid(df_type_t type) {
-  return (df_type_id_t)(type >> DF_TYPE_SHIFT);
+constexpr inline int df_type_get_typeid(df_type_t type) {
+  return type >> DF_TYPE_SHIFT;
 }
 
 constexpr inline bool df_type_is_number(df_type_t type) {
@@ -182,8 +182,8 @@ constexpr inline int df_type_get_size(df_type_t type) {
   return type & DF_SIZE_SHIFT;
 }
 
-inline const char* df_type_get_string(df_type_t type) {
-  static const char* TYPE_NAME_LIST[DF_TYPE_COUNT] = {
+const char* df_typeid_get_string(int type_id) {
+  constexpr static const char* TYPE_NAMES[DF_TYPE_COUNT] = {
     "POINTER", "NULL",
     "UINT8", "SHORT", "INT", "LONG",
     "FLOAT", "DOUBLE",
@@ -192,8 +192,11 @@ inline const char* df_type_get_string(df_type_t type) {
     "BOOL"
   };
 
-  int type_number = df_type_get_typeid(type);
-  return type_number < DF_TYPE_COUNT ? TYPE_NAME_LIST[type_number] : "INVALID_TYPE";
+  return type_id < DF_TYPE_COUNT ? TYPE_NAMES[type_id] : "INVALID_TYPE";
+}
+
+inline const char* df_type_get_string(df_type_t type) {
+  return df_typeid_get_string(df_type_get_typeid(type));
 }
 
 

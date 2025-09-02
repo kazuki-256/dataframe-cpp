@@ -22,26 +22,31 @@
 
 class df_mem_block_t : TLinkable {
   friend class df_column_t;
+  friend class df_column_text_t;
+  friend class df_column_date_t;
+  friend class df_column_time_t;
+  friend class df_column_datetime_t;
 
+  df_type_t data_type;
   size_t usage;
   size_t capacity;
-  df_type_t type;
 
   // create block without any settings
-  df_mem_block_t(df_type_t type, size_t capacity) {
-    this->type = type;
+  df_mem_block_t(df_type_t data_type, size_t capacity) {
+    this->data_type = data_type;
+
     this->capacity = capacity;
     this->usage = 0;
   }
 
 
-  static df_mem_block_t* create(df_type_t type, int capacity) {
-    const size_t DATA_SIZE = df_type_get_size(type);
+  static df_mem_block_t* create(df_type_t data_type, int capacity) {
+    const size_t DATA_SIZE = df_type_get_size(data_type);
     size_t back_size = capacity * DATA_SIZE;
     back_size = (back_size + 256) & ~255; // align to 256 bytes
 
-    void* mem = malloc(sizeof(df_mem_block_t) + back_size);
-    return new (mem) df_mem_block_t(type, back_size / DATA_SIZE);
+    void* memory = malloc(sizeof(df_mem_block_t) + back_size);
+    return new (memory) df_mem_block_t(data_type, back_size / DATA_SIZE);
   }
 
 
@@ -49,18 +54,24 @@ class df_mem_block_t : TLinkable {
 
   // copy for other array
   void fill_unsafe(int start, const uint8_t* src, df_type_t src_type, int length) {
-    const int DATA_SIZE = df_type_get_size(type);
+    const int DATA_SIZE = df_type_get_size(data_type);
+    const int DATA_TYPE_ID = df_type_get_typeid(data_type);
+    const int SRC_TYPE_ID = df_type_get_typeid(src_type);
+
+    // == get callbacks ==
 
     df_value_load_callback_t loader =
-      DF_VALUE_LOAD_CALLBACKS[df_type_get_typeid(src_type)];
+      DF_VALUE_LOAD_CALLBACKS[SRC_TYPE_ID];
 
     df_value_write_callback_t writer =
-      DF_VALUE_WRITE_CALLBACKS[df_type_get_typeid(type)][df_type_get_typeid(src_type)];
+      DF_VALUE_WRITE_CALLBACKS[SRC_TYPE_ID][DATA_TYPE_ID];
     
     if (loader == NULL || writer == NULL) {
-      df_debug6("invalid convert: %s -> %s", df_type_get_string(type), df_type_get_string(src_type));
+      df_debug6("couldn't convert %s to %s", df_typeid_get_string(DATA_TYPE_ID), df_typeid_get_string(SRC_TYPE_ID));
       return;
     }
+
+    // == copies ==
 
     uint8_t* dest = (uint8_t*)get_start() + start * DATA_SIZE;
     uint8_t* end = dest + length * DATA_SIZE;
@@ -75,25 +86,49 @@ class df_mem_block_t : TLinkable {
   }
 
   void fill_unsafe(int start, const std::initializer_list<df_object_t>& source_objects) {
-    const int DATA_SIZE = df_type_get_size(type);
+    const int DATA_SIZE = df_type_get_size(data_type);
+    const int DATA_TYPE_ID = df_type_get_typeid(data_type);
 
-    df_value_
+    // == get callbacks ==
+
+    df_value_load_callback_t default_loader =
+      DF_VALUE_LOAD_CALLBACKS[DATA_TYPE_ID];
+
+    df_value_write_callback_t default_writer =
+      DF_VALUE_WRITE_CALLBACKS[DATA_TYPE_ID][DATA_TYPE_ID];
+
+
+    if (default_loader == NULL || default_writer == NULL) {
+      const char* TYPE_NAME = df_typeid_get_string(DATA_TYPE_ID);
+      df_debug3("invalid convertion %s -> %s", TYPE_NAME, TYPE_NAME);
+      return;
+    }
+
+    // == write values ==
 
     uint8_t* dest = (uint8_t*)get_start() + start * DATA_SIZE;
     for (const df_object_t& object : source_objects) {
-      if (object.type != type) {
-        df_debug3("detacted initing %s object in %s column, auto converting...", df_type_get_string(object.type), df_type_get_string(type));
+      if (object.data_type != data_type) {
+        df_debug3("detacted initing %s object in %s column, auto converting...", df_type_get_string(object.data_type), df_typeid_get_string(DATA_TYPE_ID));
+
+        df_value_write_callback_t writer =
+          DF_VALUE_WRITE_CALLBACKS[df_type_get_typeid(object.data_type)][DATA_TYPE_ID];
+        
+        if (default_writer == NULL) {
+          df_debug3("couldn't convert %s to %s", df_type_get_string(object.data_type), df_typeid_get_string(DATA_TYPE_ID));
+          continue;
+        }
+
+        writer(object.value, dest);
+        dest += DATA_SIZE;
+        continue;
       }
 
-      convertor(object.mem, dest);
-      df_value_write_callback_t writer = writers[df_type_get_typeid(object.type)];
-
-      if (convertor == NULL) {
-        df_debug6("invalid convert: %s -> %s", df_type_get_string(type), df_type_get_string(type));
-        return;
-      }
+      default_writer(object.value, dest);
       dest += DATA_SIZE;
     }
+
+    // set variable
     usage = DF_MAX(usage, start + source_objects.size());
   }
 
@@ -103,18 +138,18 @@ class df_mem_block_t : TLinkable {
 
 public:
   ~df_mem_block_t() {
-    if (!df_type_is_struct(type)) {
+    if (!df_type_is_struct(data_type)) {
       return;
     }
 
-    if (type == DF_TYPE_TEXT) {
-      const int SIZE = df_type_get_size(type);
+    if (data_type == DF_TYPE_TEXT) {
+      const int SIZE = df_type_get_size(data_type);
       for (uint8_t* p = get_start(), *END = p + usage; p < END; p += SIZE) {
-        df_mem_release_string(p);
+        df_value_release_string_mem(p);
       }
       return;
     }
-    df_debug6("deleting unknown structed type");
+    df_debug6("deleting unknown structed data_type");
   }
 
   // == move ==
@@ -134,6 +169,7 @@ public:
 // ==== df_column_t ==
 
 class df_column_t {
+protected:
   TLinkableList<df_mem_block_t> blocks;
   int length;
   df_type_t data_type;
@@ -152,6 +188,18 @@ class df_column_t {
 
 
 
+  // advaned constructor
+  inline df_mem_block_t* init(df_type_t data_type, int length) {
+    df_debug3("create column with %d objects", length);
+
+    this->data_type = data_type;
+    this->length = length;
+
+    return blocks.tlAdd(df_mem_block_t::create(data_type, length));
+  }
+
+  df_column_t() {}
+
 public:
 
   ~df_column_t() noexcept(false) {
@@ -161,16 +209,10 @@ public:
 
   df_column_t(const std::initializer_list<df_object_t>& objects) {
     df_debug3("create column with %lu objects", objects.size());
-
-    data_type = objects.begin()->get_type();
-    length = objects.size();
-
-    df_mem_block_t* block = blocks.tlAdd(df_mem_block_t::create(data_type, objects.size()));
+    
+    df_mem_block_t* block = init(objects.begin()->get_type(), objects.size());
     block->fill_unsafe(0, objects);
   }
-
-    // advaned constructor
-  df_column_t(df_type_t objtype, int capacity = 0);
 
 
   
@@ -202,7 +244,7 @@ public:
   public:
     mem_iterator(df_mem_block_t* block) {
       this->block = block;
-      this->data_size = df_type_get_size(block->type);
+      this->data_size = df_type_get_size(block->data_type);
       this->p = block->get_start();
       this->end = p + block->usage * data_size;
     }
@@ -256,7 +298,7 @@ public:
 
 
     inline df_object_t& operator*() {
-      user_object.set_target(p, block->type);
+      user_object.set_target(p, block->data_type);
       return user_object;
     }
   };
@@ -270,7 +312,7 @@ public:
 
 
     inline const df_object_t& operator*() {
-      user_object.set_target(p, block->type);
+      user_object.set_target(p, block->data_type);
       return user_object;
     }
   };
@@ -427,17 +469,31 @@ public:
   // == print ==
 
   std::ostream& write_stream(std::ostream& os, const char* colname) const {
-    df_mem_callback2_t callback = DF_MEM_CONVERT_TABLE[df_type_get_typeid(data_type)][DF_TYPEID_TEXT];
-    if (callback == NULL) {
-      df_debug6("couldn't print column with type %s", df_type_get_string(data_type));
+    int DATA_TYPE_ID = df_type_get_typeid(data_type);
+
+    // == get callbacks ==
+
+    df_value_load_callback_t loader =
+      DF_VALUE_LOAD_CALLBACKS[DATA_TYPE_ID];
+    
+    df_value_write_callback_t writer =
+      DF_VALUE_WRITE_CALLBACKS[DATA_TYPE_ID][DF_TYPEID_TEXT];
+    
+    if (loader == NULL || writer == NULL) {
+      df_debug6("couldn't print column with data_type %s", df_typeid_get_string(DATA_TYPE_ID));
       return os;
     }
 
+    // == print ==
+
     df_string_t buffer;
+    df_value_t value;
 
     os << "| " << colname << " |\n";
     for (mem_iterator it = mem_begin(); it != mem_end(); it++) {
-      callback(*it, &buffer);
+      loader(value, *it);
+      writer(value, &buffer);
+
       os << "| " << buffer.value_or("null") << " |\n";
     }
     return os;
@@ -479,10 +535,77 @@ public:
 
 
 
-
 std::ostream& operator<<(std::ostream& os, const std::pair<std::string, df_column_t>& named_column) {
     return named_column.second.write_stream(os, named_column.first.c_str());
 }
+
+
+
+
+
+
+
+
+
+class df_column_text_t : public df_column_t {
+public:
+  df_column_text_t(const std::initializer_list<const char*>& objects) {
+    df_mem_block_t* block = init(DF_TYPE_TEXT, objects.size());
+    
+    uint8_t* p = block->get_start();
+    const int DATA_SIZE = df_type_get_size(data_type);
+
+    for (const char* const_text : objects) {
+      ((df_string_t*)p)->emplace(const_text);
+      p += DATA_SIZE;
+    }
+  }
+};
+
+class df_column_date_t : public df_column_t {
+public:
+  df_column_date_t(const std::initializer_list<df_date_t>& objects) {
+    df_mem_block_t* block = init(DF_TYPE_DATE, objects.size());
+    
+    uint8_t* p = block->get_start();
+    const int DATA_SIZE = df_type_get_size(data_type);
+
+    for (df_date_t date : objects) {
+      *((df_date_t*)p) = date;
+      p += DATA_SIZE;
+    }
+  }
+};
+
+class df_column_time_t : public df_column_t {
+public:
+  df_column_time_t(const std::initializer_list<const char*>& objects) {
+    df_mem_block_t* block = init(DF_TYPE_TIME, objects.size());
+    
+    uint8_t* p = block->get_start();
+    const int DATA_SIZE = df_type_get_size(data_type);
+
+    for (const char* const_text : objects) {
+      ((df_date_t*)p)->parse_date(const_text, DF_TIME_FORMAT);
+      p += DATA_SIZE;
+    }
+  }
+};
+
+class df_column_datetime_t : public df_column_t {
+public:
+  df_column_datetime_t(const std::initializer_list<df_date_t>& objects) {
+    df_mem_block_t* block = init(DF_TYPE_DATETIME, objects.size());
+    
+    uint8_t* p = block->get_start();
+    const int DATA_SIZE = df_type_get_size(data_type);
+
+    for (df_date_t date : objects) {
+      *((df_date_t*)p) = date;
+      p += DATA_SIZE;
+    }
+  }
+};
 
 
 

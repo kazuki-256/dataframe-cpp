@@ -14,7 +14,7 @@ size_t df_parse_month(const char* strmonth, size_t n, int* month) {
 
     for (int i = 0; i < 12; i++) {
         if (strncasecmp(strmonth, MONTHS[i], n) == 0) {
-            *month = i + 1;
+            *month = i;
             return strlen(MONTHS[i]);
         }
     }
@@ -44,6 +44,8 @@ size_t df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
 
     // == reset tm values ==
     tm->tm_hour = 0;
+    tm->tm_mon = 0;
+    tm->tm_mday = 1;
 
     // == start parse ==
 
@@ -81,7 +83,6 @@ size_t df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
                 goto label_pass;
             case 'm':
                 sscanf(strdate, "%02d", &tm->tm_mon);
-                tm->tm_mon -= 1;
                 temp = 2;
                 goto label_pass;
             case 'B':
@@ -311,21 +312,26 @@ class df_date_t {
 public:
     df_date_t(time_t _t = DF_NULL_DATETIME) { t = _t; }
 
-    df_date_t(const char* strdate, const char* fmt = DF_DATETIME_FORMAT) {
+    inline df_date_t(const char* strdate, const char* fmt = DF_DATETIME_FORMAT) {
+        parse_date(strdate, fmt);
+    }
+
+    inline df_date_t& parse_date(const char* strdate, const char* fmt = DF_DATETIME_FORMAT) {
         struct tm tm{};
         df_parse_time(strdate, fmt, &tm);
 
         t = mktime(&tm);
+        return *this;
     }
 
-    df_date_t& operator=(const char* strdate) {
+    inline df_date_t& operator=(const char* strdate) {
       struct tm tm{};
       df_parse_time(strdate, DF_DATETIME_FORMAT, &tm);
       t = mktime(&tm);
       return *this;
     }
 
-    df_date_t operator+(const df_interval_t& interval) const {
+    inline df_date_t operator+(const df_interval_t& interval) const {
         struct tm* tm = localtime(&t);
 
         struct tm dest{};
@@ -339,14 +345,14 @@ public:
         return df_date_t(mktime(&dest));
     }
 
-    df_date_t& operator+=(const df_interval_t& interval) {
+    inline df_date_t& operator+=(const df_interval_t& interval) {
         *this = *this + interval;
         return *this;
     }
 
 
 
-    df_date_t operator-(const df_interval_t& interval) const {
+    inline df_date_t operator-(const df_interval_t& interval) const {
         struct tm* tm = localtime(&t);
 
         struct tm dest{};
@@ -360,21 +366,21 @@ public:
         return df_date_t(mktime(&dest));
     }
 
-    df_date_t& operator-=(const df_interval_t& interval) {
+    inline df_date_t& operator-=(const df_interval_t& interval) {
         *this = *this - interval;
         return *this;
     }
 
 
-    operator time_t() const {
+    inline operator time_t() const {
         return t;
     }
 
-    operator std::string() const {
+    inline operator std::string() const {
         return std::string(c_str());
     }
 
-    const char* c_str(const char* fmt = DF_DATETIME_FORMAT, char* buffer = DF_STATIC_BUFFER, size_t buffer_size = DF_STATIC_BUFFER_LENGTH) const {
+    inline const char* c_str(const char* fmt = DF_DATETIME_FORMAT, char* buffer = DF_STATIC_BUFFER, size_t buffer_size = DF_STATIC_BUFFER_LENGTH) const {
         struct tm* tm = localtime(&t);
         strftime(buffer, buffer_size, fmt, tm);
         return buffer;

@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
     std::cout << objectB << "\n";
     std::cout << objectC << "\n";
 
-    // object type would not chnage after created, objectA would be 3
+    // object type would not chnage after created, so objectA would be 3
     objectA = 3.1416;
 
     // object copy
