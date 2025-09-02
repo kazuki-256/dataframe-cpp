@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
 include "dataframe_cpp/types/column.hpp"
 
 int main(int argc, char** argv) {
-    df_column_t numbers = {"hello world", "yoshihara kazuki"};
+    df_column_text_t numbers = {"hello world", "yoshihara kazuki"};
   
     std::cout << numbers << "\n";
     return 0;
