@@ -2,12 +2,11 @@
 
 ## info
 
-| programmer  | かずき256         |
-| :---------- | :---------------- |
-| version     | beta 1.0.0        |
-| last update | 2025/08/14        |
-| state       | developmenting     |
-
+| programmer  | かずき256      |
+| :---------- | :------------- |
+| version     | beta 1.0.0     |
+| last update | 2025/08/14     |
+| state       | developmenting |
 
 ## init
 
@@ -16,7 +15,6 @@ This data frame API is for data science in c++, target at readable, high perform
 The API will store the data handles steps to df_process and execute data processs when df_process convert to iterator, df_column or df_data_frame. it would support sql commands, vector operation and data science method (min(), max(), median(), etc)
 
 Currently, this API stills in making the df_data_frame object, but the main.cpp shows over my excepted cleanly.
-
 
 ## Sample
 
@@ -64,20 +62,12 @@ int main(int argc, char** argv) {
 **currently**
 
 ```cpp
-include "data_frame/types/data_frame.hpp"
+include "data_frame/types/column.hpp"
 
 int main(int argc, char** argv) {
-    df_column<df_string> numbers = {"hello world", "yoshihara kazuki"};
-
-    df_data_frame df = {
-        {"id", df_column<int>{1, 2, 3, 4, 5}},
-        {"name", df_column<df_string>{"1", "2", "3", "4", "5"}}
-    };
-
-    // df_data_frame still not completed
+    df_column_t numbers = {"hello world", "yoshihara kazuki"};
   
     std::cout << numbers << "\n";
-    std::cout << df << "\n";
     return 0;
 }
 ```
@@ -102,7 +92,6 @@ int main(int argc, char** argv) {
 ### **df_date_t**
 
 Encapsulation of c `time_t`
-
 
 ```cpp
 class df_date_t {
@@ -165,7 +154,6 @@ class df_row_t {
   friend ostream& operator<<() const;    // std::cout << row;
 };
 ```
-
 
 ### **df_column_t<df_type_t>**
 
@@ -240,9 +228,6 @@ class df_query_t {
 };
 ```
 
-
-
-
 ## Logs
 
 - 2025-08-17:
@@ -263,4 +248,3 @@ class df_query_t {
 - 2025-08-14:
 
   - update README.md
-
