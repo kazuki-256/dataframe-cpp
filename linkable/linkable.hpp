@@ -364,15 +364,15 @@ public:
 		}
 
 		// insert part2
-		tlinkable->tlLeft = position->tlLeft;
+		tlinkable->tlLeft = ((TLinkable*)position)->tlLeft;
 
-		if (position->tlLeft) {
-			position->tlLeft->tlRight = tlinkable;
+		if (((TLinkable*)position)->tlLeft) {
+			((TLinkable*)position)->tlLeft->tlRight = tlinkable;
 		}
 		else {	// if position->tlLeft == NULL, meaning new insert object will be first
 			tlFirst = tlinkable;
 		}
-		position->tlLeft = tlinkable;
+		((TLinkable*)position)->tlLeft = tlinkable;
 		return object;
     }
 
@@ -405,15 +405,15 @@ public:
 		}
 
 		// insert part2
-		tlinkable->tlRight = position->tlRight;
+		tlinkable->tlRight = ((TLinkable*)position)->tlRight;
 
-		if (position->tlRight) {
-			position->tlRight->tlLeft = tlinkable;
+		if (((TLinkable*)position)->tlRight) {
+			((TLinkable*)position)->tlRight->tlLeft = tlinkable;
 		}
 		else {	// if position->tlRight == NULL, meaning new insert will be last
 			tlLast = tlinkable;
 		}
-		position->tlRight = tlinkable;
+		((TLinkable*)position)->tlRight = tlinkable;
 		return object;
     }
 

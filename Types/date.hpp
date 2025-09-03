@@ -9,7 +9,7 @@
 
 
 // parse month
-size_t df_parse_month(const char* strmonth, size_t n, int* month) {
+inline size_t df_parse_month(const char* strmonth, size_t n, int* month) {
     static const char* MONTHS[12] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
 
     for (int i = 0; i < 12; i++) {
@@ -22,7 +22,7 @@ size_t df_parse_month(const char* strmonth, size_t n, int* month) {
 }
 
 // parse weekday
-size_t df_parse_weekday(const char* strweek, size_t n, int* week) {
+inline size_t df_parse_weekday(const char* strweek, size_t n, int* week) {
     static const char* WEEKDAYS[7] = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
 
     for (int i = 0; i < 7; i++) {
@@ -36,8 +36,8 @@ size_t df_parse_weekday(const char* strweek, size_t n, int* week) {
 
 // self strptime for parsing time in win32
 // ! be causeful since this method will not complete all values
-size_t df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
-    const char* original = strdate;
+int df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
+    const char* fmt_start = fmt;
     int symbol, c;
     char buffer[10];
     int temp;
@@ -72,7 +72,10 @@ size_t df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
             case '%':
                 goto filter;
             case 'Y':
-                sscanf(strdate, "%04d", &tm->tm_year);
+                if (sscanf(strdate, "%04d", &tm->tm_year) == 0) {
+                    return -1;
+                }
+
                 tm->tm_year -= 1900;
                 temp = 4;
                 goto label_pass;
@@ -83,6 +86,7 @@ size_t df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
                 goto label_pass;
             case 'm':
                 sscanf(strdate, "%02d", &tm->tm_mon);
+                tm->tm_mon -= 1;
                 temp = 2;
                 goto label_pass;
             case 'B':
@@ -187,10 +191,10 @@ size_t df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
         }
 
         continue;
-      label_pass:
+    label_pass:
         do {
           if ((c = *(strdate++)) == 0) {
-            return strdate - original;
+            return 0;
           }
           if (!isdigit(c)) {
             strdate--;
@@ -198,8 +202,9 @@ size_t df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
           }
         }
         while (--temp > 0);
-      }
-    return strdate - original;
+    }
+
+    return 0;
 }
 
 
@@ -291,14 +296,26 @@ public:
     }
   }
 
+
+  // sum(years, months, ..., seconds), if total < 0, return -1. total == 0, return 0. total > 0, return 1
+  int get_direction() const {
+    int total = years + months + days + hours + minutes + seconds;
+
+    return total < 0 ? -1
+        : total == 0 ? 0
+        : 1;
+  }
+
+
+  // == formatting ==
   
-  const char* c_str(char* buffer = DF_STATIC_BUFFER, size_t buffer_size = DF_STATIC_BUFFER_LENGTH) const {
+  inline const char* c_str(char* buffer = DF_STATIC_BUFFER, size_t buffer_size = DF_STATIC_BUFFER_LENGTH) const {
     snprintf(buffer, buffer_size, "df_interval_t(%d years, %d months, %d days, %d hours, %d mintues, %d seconds)",
         years, months, days, hours, minutes, seconds);
     return buffer;
   }
 
-  operator std::string() const {
+  inline operator std::string() const {
     return std::string(c_str());
   }
 };
@@ -310,19 +327,28 @@ class df_date_t {
   time_t t;
 
 public:
-    df_date_t(time_t _t = DF_NULL_DATETIME) { t = _t; }
+    inline df_date_t(time_t _t = DF_NULL_DATETIME) { t = _t; }
 
     inline df_date_t(const char* strdate, const char* fmt = DF_DATETIME_FORMAT) {
         parse_date(strdate, fmt);
     }
 
+    inline df_date_t(std::string& strdate, const char* fmt = DF_DATETIME_FORMAT) {
+        parse_date(strdate.c_str(), fmt);
+    }
+
+
     inline df_date_t& parse_date(const char* strdate, const char* fmt = DF_DATETIME_FORMAT) {
         struct tm tm{};
-        df_parse_time(strdate, fmt, &tm);
-
-        t = mktime(&tm);
+        if (df_parse_time(strdate, fmt, &tm)) {
+            t = DF_NULL_DATETIME;
+        }
+        else {
+            t = mktime(&tm);
+        }
         return *this;
     }
+
 
     inline df_date_t& operator=(const char* strdate) {
       struct tm tm{};
@@ -376,6 +402,9 @@ public:
         return t;
     }
 
+
+    // == formatting ==
+
     inline operator std::string() const {
         return std::string(c_str());
     }
@@ -384,6 +413,13 @@ public:
         struct tm* tm = localtime(&t);
         strftime(buffer, buffer_size, fmt, tm);
         return buffer;
+    }
+
+
+    // == std::cout ==
+
+    friend inline std::ostream& operator<<(std::ostream& stream, const df_date_t date) {
+        return stream << date.c_str();
     }
 };
 

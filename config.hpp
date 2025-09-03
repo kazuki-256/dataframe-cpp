@@ -105,27 +105,48 @@ typedef enum df_type_id_t {
 } df_type_id_t;
 
 
+#define DF_TYPESIZE_POINTER 8
+#define DF_TYPESIZE_NULL 1
+
+#define DF_TYPESIZE_UINT8 1
+#define DF_TYPESIZE_INT16 2
+#define DF_TYPESIZE_INT32 4
+#define DF_TYPESIZE_INT64 8
+
+#define DF_TYPESIZE_FLOAT32 4
+#define DF_TYPESIZE_FLOAT64 8
+
+#define DF_TYPESIZE_TEXT 32
+#define DF_TYPESIZE_CATEGORY 4
+
+#define DF_TYPESIZE_DATETIME 8
+#define DF_TYPESIZE_INTERVAL 24
+
+#define DF_TYPESIZE_BOOL 1
+
+
+
 typedef enum df_type_t {
-  DF_TYPE_POINTER = DF_TYPEID_POINTER << DF_TYPE_SHIFT | 8,    // void*
-  DF_TYPE_NULL = DF_TYPEID_NULL << DF_TYPE_SHIFT | 1,          // df_null_t
+  DF_TYPE_POINTER = DF_TYPEID_POINTER << DF_TYPE_SHIFT | DF_TYPESIZE_POINTER,    // void*
+  DF_TYPE_NULL = DF_TYPEID_NULL << DF_TYPE_SHIFT | DF_TYPESIZE_NULL,          // df_null_t
 
-  DF_TYPE_UINT8 = DF_TYPEID_UINT8 << DF_TYPE_SHIFT | 1,        // uint8_t
-  DF_TYPE_INT16 = DF_TYPEID_INT16 << DF_TYPE_SHIFT | 2,        // short
-  DF_TYPE_INT32 = DF_TYPEID_INT32 << DF_TYPE_SHIFT | 4,        // int
-  DF_TYPE_INT64 = DF_TYPEID_INT64 << DF_TYPE_SHIFT | 8,        // long
+  DF_TYPE_UINT8 = DF_TYPEID_UINT8 << DF_TYPE_SHIFT | DF_TYPESIZE_UINT8,        // uint8_t
+  DF_TYPE_INT16 = DF_TYPEID_INT16 << DF_TYPE_SHIFT | DF_TYPESIZE_INT16,        // short
+  DF_TYPE_INT32 = DF_TYPEID_INT32 << DF_TYPE_SHIFT | DF_TYPESIZE_INT32,        // int
+  DF_TYPE_INT64 = DF_TYPEID_INT64 << DF_TYPE_SHIFT | DF_TYPESIZE_INT64,        // long
 
-  DF_TYPE_FLOAT32 = DF_TYPEID_FLOAT32 << DF_TYPE_SHIFT | 4,    // float
-  DF_TYPE_FLOAT64 = DF_TYPEID_FLOAT64 << DF_TYPE_SHIFT | 8,    // double
+  DF_TYPE_FLOAT32 = DF_TYPEID_FLOAT32 << DF_TYPE_SHIFT | DF_TYPESIZE_FLOAT32,    // float
+  DF_TYPE_FLOAT64 = DF_TYPEID_FLOAT64 << DF_TYPE_SHIFT | DF_TYPESIZE_FLOAT64,    // double
 
-  DF_TYPE_TEXT = DF_TYPEID_TEXT << DF_TYPE_SHIFT | 32,         // std::optional<std::string>
-  DF_TYPE_CATEGORY = DF_TYPEID_CATEGORY << DF_TYPE_SHIFT | 2,  // int
+  DF_TYPE_TEXT = DF_TYPEID_TEXT << DF_TYPE_SHIFT | DF_TYPESIZE_TEXT,         // std::optional<std::string>
+  DF_TYPE_CATEGORY = DF_TYPEID_CATEGORY << DF_TYPE_SHIFT | DF_TYPESIZE_CATEGORY,  // int
 
-  DF_TYPE_DATE = DF_TYPEID_DATE << DF_TYPE_SHIFT | 8,          // df_date_t
-  DF_TYPE_TIME = DF_TYPEID_TIME << DF_TYPE_SHIFT | 8,          // df_date_t
-  DF_TYPE_DATETIME = DF_TYPEID_DATETIME << DF_TYPE_SHIFT | 8,  // df_date_t
-  DF_TYPE_INTERVAL = DF_TYPEID_INTERVAL << DF_TYPE_SHIFT | 24, // df_interval_t
+  DF_TYPE_DATE = DF_TYPEID_DATE << DF_TYPE_SHIFT | DF_TYPESIZE_DATETIME,          // df_date_t
+  DF_TYPE_TIME = DF_TYPEID_TIME << DF_TYPE_SHIFT | DF_TYPESIZE_DATETIME,          // df_date_t
+  DF_TYPE_DATETIME = DF_TYPEID_DATETIME << DF_TYPE_SHIFT | DF_TYPESIZE_DATETIME,  // df_date_t
+  DF_TYPE_INTERVAL = DF_TYPEID_INTERVAL << DF_TYPE_SHIFT | DF_TYPESIZE_INTERVAL, // df_interval_t
 
-  DF_TYPE_BOOL = DF_TYPEID_BOOL << DF_TYPE_SHIFT | 1,          // bool
+  DF_TYPE_BOOL = DF_TYPEID_BOOL << DF_TYPE_SHIFT | DF_TYPESIZE_BOOL,          // bool
 
   // == alias ==
 
@@ -231,8 +252,8 @@ inline const char* df_type_get_string(df_type_t type) {
 #define DF_MIN_INT64  0x8000000000000001
 #define DF_MAX_INT64  0x7fffffffffffffff
 
-#define DF_NULL_FLOAT32 0x7FC00000
-#define DF_NULL_FLOAT64 0x7ff8000000000000
+#define DF_NULL_FLOAT32 0x7FC00000            // ⚠️ Represents a quiet NaN (float) encoded as an int32. Used for forced memory writes. Not safe for arithmetic or logical operations.
+#define DF_NULL_FLOAT64 0x7ff8000000000000    // ⚠️ Represents a quiet NaN (double) encoded as an int64. Used for forced memory writes. Not safe for arithmetic or logical operations.
 
 #define DF_NULL_CATEGORY DF_NULL_INT32
 
@@ -261,6 +282,12 @@ constexpr char DF_DATE_FORMAT[] = "%Y-%m-%d";
 constexpr char DF_TIME_FORMAT[] = "%H:%M:%S";
 constexpr char DF_DATETIME_FORMAT[] = "%Y-%m-%d %H:%M:%S";
 
+
+
+constexpr char DF_DEFAULT_COLUMN_NAME[] = "X";
+
+#define DF_DEFAULT_COLUMN_SMALL_START_CAPACITY 1024
+#define DF_DEFAULT_COLUMN_BIG_START_CAPACITY 32768
 
 
 
