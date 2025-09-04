@@ -24,7 +24,7 @@ typedef union df_value_t {
     df_date_t as_date;
 
     inline ~df_value_t() {};
-    inline df_value_t() {};
+    constexpr df_value_t() : as_long(0) {};
 
     inline df_value_t(void* pointer_value) : as_pointer(pointer_value) {}
     inline df_value_t(df_string_t* string_value) : as_string(string_value) {}

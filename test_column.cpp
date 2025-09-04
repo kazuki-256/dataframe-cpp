@@ -1,13 +1,17 @@
+#define DF_DEBUG_LEVEL 3
 #include "types/column.hpp"
-#include <time.h>
-#include <iostream>
 
 int main(int argc, char** argv) {
     struct timespec start, end;
-	clock_gettime(CLOCK_MONOTONIC, &start);
-    df_column_t column = df_column_t::make_date_range("2005-1-1", "2006-1-1", df_interval_t("30 seconds"));
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    df_column_t column = df_column_t::range_date("100", "2025", "1 month");
     clock_gettime(CLOCK_MONOTONIC, &end);
 
-    printf("usetime: %lf s\n", end.tv_sec - start.tv_sec + ((end.tv_nsec - start.tv_nsec) % 1000000 / 1.0e6));
+    printf("usetime: %lu ns\n", (end.tv_sec - start.tv_sec) * 1000000000 + (end.tv_nsec - start.tv_nsec));
+
+
+    std::cout << "first: " << column[0] << " " << column[1] << " " << column[2] << "\n";
+    std::cout << "last: " << column[-3] << " " << column[-2] << " " << column[-1] << "\n";
+
     return 0;
 }

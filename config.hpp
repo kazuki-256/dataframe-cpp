@@ -288,7 +288,7 @@ constexpr char DF_DATETIME_FORMAT[] = "%Y-%m-%d %H:%M:%S";
 
 
 
-constexpr char DF_DEFAULT_COLUMN_NAME[] = "X";
+constexpr char DF_DEFAULT_COLUMN_NAME[] = "COLUMN";
 
 #define DF_DEFAULT_COLUMN_SMALL_START_CAPACITY 4096
 #define DF_DEFAULT_COLUMN_BIG_START_CAPACITY 32768

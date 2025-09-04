@@ -44,15 +44,11 @@ class df_object_t {
 
   std::vector<std::string>* category_titles;
 
-  inline df_object_t() {
-    category_titles = NULL;
-  }
+  constexpr df_object_t() : target(NULL), preloaded(), owns_memory(false), data_type(DF_TYPE_NULL), category_titles(NULL) {}
 
   inline void set_target(void* target, df_type_t target_type, df_value_load_callback_t loader) {
     target = target;
     preloaded = loader(target);
-
-    owns_memory = false;
     data_type = target_type;
   }
 
@@ -183,7 +179,11 @@ public:
     return data_type;
   }
 
-  // == std::cout ==
+  // == string ==
+
+  inline std::string to_string() const {
+    return (std::string)*this;
+  }
 
   friend inline std::ostream& operator<<(std::ostream& stream, const df_object_t& object) {
     return stream << (std::string)object;

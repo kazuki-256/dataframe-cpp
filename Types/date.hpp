@@ -131,7 +131,9 @@ int df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
             
             // == time parsing ==
             case 'H':
-                sscanf(strdate, "%02d", &tm->tm_hour);
+                if (sscanf(strdate, "%02d", &tm->tm_hour) == 0) {
+                    return -1;
+                }
                 temp = 2;
                 goto label_pass;
             case 'l':
@@ -214,110 +216,117 @@ int df_parse_time(const char* strdate, const char* fmt, struct tm* tm) {
 
 class df_interval_t {
 public:
-  int years = 0, months = 0, days = 0;
-  int hours = 0, minutes = 0, seconds = 0;
+    int years = 0, months = 0, days = 0;
+    int hours = 0, minutes = 0, seconds = 0;
 
-  df_interval_t(const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
+    short on_wday = -1;
+    short on_mday = -1;
+    short on_yday = -1;
 
-    vsnprintf(DF_STATIC_BUFFER, DF_STATIC_BUFFER_LENGTH, fmt, args);
-    va_end(args);
 
-    
-    char* p = DF_STATIC_BUFFER;
-    int value = 0;
-    int c = *p;
 
-    days = 0;
+    inline df_interval_t(const char* fmt) {
+        const char* p = fmt;
+        int value = 0;
+        int c = *p;
 
-    while ((c = *p)) {
-        while (c != '\0' && isspace(c)) c = *(p++);
-        if (c == '\0') {
-            return;
-        }
+        days = 0;
 
-        if (isdigit(c)) {
-            sscanf(p, "%d", &value);
+        while ((c = *p)) {
+            while (c != '\0' && isspace(c)) c = *(p++);
+            if (c == '\0') {
+                return;
+            }
 
-            while ((c = *p++) && isdigit(c));
-            continue;
-        }
+            if (isdigit(c)) {
+                sscanf(p, "%d", &value);
 
-        if (!isalpha(c)) {
-            c = *(p++);
-            continue;
-        }
+                while ((c = *p++) && isdigit(c));
+                continue;
+            }
 
-        if (strncasecmp(p, "year", 4) == 0) {
-            years = value;
-            p += 4;
-            continue;
-        }
-        if (strncasecmp(p, "month", 5) == 0) {
-            months = value;
-            p += 5;
-            continue;
-        }
-        if (strncasecmp(p, "week", 4) == 0) {
-            days += value * 7;
-            p += 4;
-            continue;
-        }
-        if (strncasecmp(p, "day", 3) == 0) {
-            days += value;
-            p += 3;
-            continue;
-        }
-        if (strncasecmp(p, "hour", 4) == 0) {
-            hours += value * 7;
-            p += 4;
-            continue;
-        }
-        if (strncasecmp(p, "min", 3) == 0) {
-            minutes += value * 7;
-            p += 3;
+            if (!isalpha(c)) {
+                c = *(p++);
+                continue;
+            }
 
-            if (strncasecmp(p, "utue", 4) == 0) {
+            if (strncasecmp(p, "year", 4) == 0) {
+                years = value;
                 p += 4;
+                continue;
             }
-            continue;
-        }
-        if (strncasecmp(p, "sec", 3) == 0) {
-            seconds = value;
-            p += 3;
-
-            if (strncasecmp(p, "ond", 3) == 0) {
+            if (strncasecmp(p, "month", 5) == 0) {
+                months = value;
+                p += 5;
+                continue;
+            }
+            if (strncasecmp(p, "week", 4) == 0) {
+                days += value * 7;
+                p += 4;
+                continue;
+            }
+            if (strncasecmp(p, "day", 3) == 0) {
+                days += value;
                 p += 3;
+                continue;
             }
+            if (strncasecmp(p, "hour", 4) == 0) {
+                hours += value * 7;
+                p += 4;
+                continue;
+            }
+            if (strncasecmp(p, "min", 3) == 0) {
+                minutes += value * 7;
+                p += 3;
+                goto label_fix_lessing;
+            }
+            if (strncasecmp(p, "sec", 3) == 0) {
+                seconds = value;
+                p += 3;
+                goto label_fix_lessing;
+            }
+
+            // couldn't parse
+            p++;
             continue;
+        label_fix_lessing:
+            while ((c = *p++) != 0 && !isspace(c)) {
+                p++;
+            }
         }
-        p++;
     }
-  }
 
 
-  // sum(years, months, ..., seconds), if total < 0, return -1. total == 0, return 0. total > 0, return 1
-  int get_direction() const {
-    int total = years + months + days + hours + minutes + seconds;
 
-    return total < 0 ? -1
-        : total == 0 ? 0
-        : 1;
-  }
+    // sum(years, months, ..., seconds), if total < 0, return -1. total == 0, return 0. total > 0, return 1
+    inline int get_direction() const {
+        int total = years + months + days + hours + minutes + seconds;
+
+        return total < 0 ? -1
+            : total == 0 ? 0
+            : 1;
+    }
+
+    inline bool is_constant() const {
+        return !(years || months);
+    }
+
+    inline time_t calculate_constant() const {
+        return ((((years * 365 + months) * 30 + days) * 24 + hours) * 60 + minutes) * 60 + seconds;
+    }
 
 
-  // == formatting ==
-  
-  inline const char* c_str(char* buffer = DF_STATIC_BUFFER, size_t buffer_size = DF_STATIC_BUFFER_LENGTH) const {
-    snprintf(buffer, buffer_size, "df_interval_t(%d years, %d months, %d days, %d hours, %d mintues, %d seconds)",
-        years, months, days, hours, minutes, seconds);
-    return buffer;
-  }
+    // == formatting ==
+    
+    inline const char* c_str(char* buffer = DF_STATIC_BUFFER, size_t buffer_size = DF_STATIC_BUFFER_LENGTH) const {
+        snprintf(buffer, buffer_size, "df_interval_t(%d years, %d months, %d days, %d hours, %d mintues, %d seconds)",
+            years, months, days, hours, minutes, seconds);
+        return buffer;
+    }
 
-  inline operator std::string() const {
-    return std::string(c_str());
-  }
+    inline operator std::string() const {
+            return std::string(c_str());
+    }
 };
 
 
@@ -351,11 +360,27 @@ public:
 
 
     inline df_date_t& operator=(const char* strdate) {
-      struct tm tm{};
-      df_parse_time(strdate, DF_DATETIME_FORMAT, &tm);
-      t = mktime(&tm);
-      return *this;
+        struct tm tm{};
+        df_parse_time(strdate, DF_DATETIME_FORMAT, &tm);
+        t = mktime(&tm);
+        return *this;
     }
+
+    // == interval ==
+
+    inline df_date_t& operator+=(time_t interval) {
+        t += interval;
+        return *this;
+    }
+
+    inline df_date_t& operator+(time_t interval) {
+        t += interval;
+        return *this;
+    }
+
+    
+    
+
 
     inline df_date_t operator+(const df_interval_t& interval) const {
         struct tm* tm = localtime(&t);
