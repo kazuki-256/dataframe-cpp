@@ -59,7 +59,11 @@ class df_date_t;
 class df_null_t;
 
 class df_object_t;
+class df_row_t;
+
 class df_column_t;
+typedef std::pair<std::string, df_column_t> df_named_column_t;
+
 class df_dataframe_t;
 
 class df_query_t;
@@ -286,7 +290,7 @@ constexpr char DF_DATETIME_FORMAT[] = "%Y-%m-%d %H:%M:%S";
 
 constexpr char DF_DEFAULT_COLUMN_NAME[] = "X";
 
-#define DF_DEFAULT_COLUMN_SMALL_START_CAPACITY 1024
+#define DF_DEFAULT_COLUMN_SMALL_START_CAPACITY 4096
 #define DF_DEFAULT_COLUMN_BIG_START_CAPACITY 32768
 
 

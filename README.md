@@ -62,14 +62,17 @@ int main(int argc, char** argv) {
 **currently**
 
 ```cpp
-include "dataframe_cpp/types/column.hpp"
+#include "types/column.hpp"
+#include <iostream>
 
 int main(int argc, char** argv) {
-    df_column_text_t numbers = {"hello world", "yoshihara kazuki"};
-  
-    std::cout << numbers << "\n";
+    df_column_t columnA = df_column_t::make_date_range("2005-1-1", "2010-1-1", df_interval_t("1 years"));
+    df_column_t  
+
+    std::cout << column << "\n";
     return 0;
 }
+
 ```
 
 ## Features

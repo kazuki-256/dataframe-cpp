@@ -48,12 +48,16 @@ class df_object_t {
     category_titles = NULL;
   }
 
-  inline void set_target(void* target, df_type_t target_type) {
+  inline void set_target(void* target, df_type_t target_type, df_value_load_callback_t loader) {
     target = target;
-    preloaded = df_value_load(target, target_type);
+    preloaded = loader(target);
 
     owns_memory = false;
     data_type = target_type;
+  }
+
+  inline void set_target(void* target, df_type_t target_type) {
+    set_target(target, target_type, df_value_get_load_callback(target_type));
   }
 
 

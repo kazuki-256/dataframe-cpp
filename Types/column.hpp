@@ -21,14 +21,7 @@
 // ==== df_mem_block_t ====
 
 class df_mem_block_t : TLinkable {
-  friend class df_column_t;
-  friend class df_column_text_t;
-  friend class df_column_time_t;
-
-  df_type_t data_type;
-  long usage;
-  long capacity;
-
+private:
   // create block without any settings
   df_mem_block_t(df_type_t data_type, long capacity) {
     this->data_type = data_type;
@@ -36,6 +29,16 @@ class df_mem_block_t : TLinkable {
     this->capacity = capacity;
     this->usage = 0;
   }
+
+
+protected:
+  friend class df_column_t;
+  friend class df_column_text_t;
+  friend class df_column_time_t;
+
+  df_type_t data_type;
+  long usage;
+  long capacity;
 
 
   static df_mem_block_t* create(df_type_t data_type, long capacity) {
@@ -175,14 +178,6 @@ protected:
   std::set<df_column_t*> be_foregined;  // SQL foregined by who (not usable)
   df_column_t* foregin_to = NULL;       // SQL foregin key (not usable)
 
-
-  static uint8_t* outside_write_data(df_column_t& column, long length) {
-    df_mem_block_t* block = column.blocks.tlBack();
-    column.length = block->usage = length;
-
-    return block->get_start();
-  }
-
   
   df_object_t get_object_at(long index) const {
     const int DATA_SIZE = df_type_get_size(data_type);
@@ -206,14 +201,8 @@ protected:
     }
 
     // == find ==
-    
-    for (block = blocks.tlFront(); block != NULL; block = (df_mem_block_t*)block->tlNext()) {
-      if (index < block->usage) {
-        object.set_target(block->get_start() + index * DATA_SIZE, data_type);
-        return object;
-      }
-      index -= block->usage;
-    }
+    const_iterator iterator = begin() + index;
+
 
     // ERROR: not found
     throw df_exception_out_of_index();
@@ -291,6 +280,8 @@ public:
 
   ~df_column_t() noexcept(false) {
     df_debug3("delete column with %d blocks %d objects", blocks.tlLength(), length);
+
+    blocks.tlClear();
   }
 
 
@@ -331,19 +322,43 @@ public:
     df_mem_block_t* block;
     uint8_t* p;
     uint8_t* end;
+
     int size_per_data;
+    df_value_load_callback_t loader;
+
+    df_object_t user_object;
+
+
+    inline mem_iterator& forward(long offset) {
+      for (; block != NULL; block = (df_mem_block_t*)block->tlNext()) {
+        if (offset < block->usage) {
+          return *this;
+        }
+        offset -= block->usage;
+      }
+      return *this;   // block == NULL, meaning not found
+    }
 
   public:
-    mem_iterator(df_mem_block_t* block) {
-      this->block = block;
-      this->size_per_data = df_type_get_size(block->data_type);
+    mem_iterator(df_mem_block_t* init_block) {
+      block = init_block;
+      p = block->get_start();
+      end = p + block->usage * size_per_data;
 
-      this->p = block->get_start();
-      this->end = p + block->usage * size_per_data;
+      size_per_data = df_type_get_size(block->data_type);
+      loader = df_value_get_load_callback(block->data_type);
     }
 
     mem_iterator(int) {
       this->block = NULL;
+    }
+
+    mem_iterator(const mem_iterator& other) {
+      block = other.block;
+      p = other.p;
+      end = other.end;
+      size_per_data = other.size_per_data;
+      loader = other.loader;
     }
 
 
@@ -364,14 +379,23 @@ public:
       return *this;
     }
 
-    inline mem_iterator operator++(int) {
-      mem_iterator old = *this;
+    inline mem_iterator& operator++(int) {
       ++(*this);
-      return old;
+      return *this;
     }
 
-    inline bool operator!=(const mem_iterator& other) const {
+    inline mem_iterator operator+(long offset) const {
+      mem_iterator other = *this;
+      return other.forward(offset);
+    }
+
+
+    inline bool is_end() const {
       return block != NULL;
+    }
+
+    inline bool operator!=(const mem_iterator&) const {
+      return is_end();
     }
   };
 
@@ -385,10 +409,14 @@ public:
       return p;
     }
 
+    inline const_mem_iterator operator+(long offset) const {
+      const_mem_iterator other = *this;
+      other.forward(offset);
+      return other;
+    }
   };
 
   class iterator : public mem_iterator {
-    df_object_t user_object;
   public:
     iterator(df_mem_block_t* block) : mem_iterator(block) {}
 
@@ -396,13 +424,18 @@ public:
 
 
     inline df_object_t& operator*() {
-      user_object.set_target(p, block->data_type);
+      user_object.set_target(p, block->data_type, loader);
       return user_object;
+    }
+
+    inline iterator operator+(long offset) const {
+      iterator other = *this;
+      other.forward(offset);
+      return other;
     }
   };
 
   class const_iterator : public mem_iterator {
-    df_object_t user_object;
   public:
     const_iterator(df_mem_block_t* block) : mem_iterator(block) {}
 
@@ -410,8 +443,14 @@ public:
 
 
     inline const df_object_t& operator*() {
-      user_object.set_target(p, block->data_type);
+      user_object.set_target(p, block->data_type, loader);
       return user_object;
+    }
+
+    inline const_iterator operator+(long offset) const {
+      const_iterator other = *this;
+      other.forward(offset);
+      return other;
     }
   };
 
@@ -603,8 +642,8 @@ public:
 
     // == get callbacks ==
 
-    df_value_load_callback_t loader = DF_VALUE_LOAD_CALLBACKS[df_type_get_typeid(other.data_type)];
-    df_value_write_callback_t writer = DF_VALUE_WRITE_CALLBACKS[df_type_get_typeid(other.data_type)][df_type_get_typeid(this->data_type)];
+    df_value_load_callback_t loader = df_value_get_load_callback(other.data_type);
+    df_value_write_callback_t writer = df_value_get_write_callback(other.data_type, this->data_type);
 
     // null check
 
@@ -689,11 +728,98 @@ public:
 
   // == make range ==
 
-  static df_column_t make_int32_range(int start, int end, int interval);
+  static df_column_t make_int32_range(int start, int end, int interval) {
+    if (interval == 0) {
+      throw df_exception_t("interval couldn't be 0");
+    }
 
-  static df_column_t make_int64_range(long start, long end, long interval);
+    long length = (end - start) / interval;
+    if (interval < 0) {
+      throw df_exception_t("endless numbers");
+    }
+
+    df_column_t column(DF_TYPE_INT32, length);
+    df_mem_block_t* block = column.blocks.tlBack();
+    uint8_t* p = block->get_start();
+
+    for (; start < end; start += interval, p += DF_TYPESIZE_INT32) {
+      df_value_write_long_long(start, p);
+    }
+    column.length = block->usage = length;
+    return column;
+  }
+
+  static df_column_t make_int64_range(long start, long end, long interval) {
+    if (interval == 0) {
+      throw df_exception_t("interval couldn't be 0");
+    }
+
+    long length = (end - start) / interval;
+    if (interval < 0) {
+      throw df_exception_t("endless numbers");
+    }
+
+    df_column_t column(DF_TYPE_INT64, length);
+    df_mem_block_t* block = column.blocks.tlBack();
+    uint8_t* p = block->get_start();
+
+    for (; start < end; start += interval, p += DF_TYPESIZE_INT64) {
+      df_value_write_long_long(start, p);
+    }
+    column.length = block->usage = length;
+    return column;
+  }
+  
+
+  static df_column_t make_datetime_range(df_date_t start, df_date_t end, df_interval_t interval) {
+    int direction = interval.get_direction();
+    if (direction == 0) {
+      throw df_exception_t("interval couldn't be 0");
+    }
+
+    if (((time_t)end - (time_t)start) * direction < 0) {
+      throw df_exception_t("endless numbers");
+    }
+
+    df_column_t column(DF_TYPE_DATETIME);
+    df_mem_block_t* block = column.blocks.tlBack();
+    uint8_t* p = block->get_start();
+    
+    for (; start < end; start += interval) {
+      if (block->usage >= block->capacity) {
+        column.length += block->usage;
+        block = column.blocks.tlAdd(df_mem_block_t::create(DF_TYPE_DATETIME, column.length * 2));
+        p = block->get_start();
+      }
+
+      df_value_write_long_long(start, p + (block->usage++) * DF_TYPESIZE_DATETIME);
+    }
+    column.length += block->usage;
+    
+    return column;
+  }
+
+  inline static df_column_t make_date_range(df_date_t start, df_date_t end, df_interval_t interval) {
+    df_column_t column = make_datetime_range(start, end, interval);
+    column.data_type = DF_TYPE_DATE;
+    return column;
+  }
+
+  inline static df_column_t make_time_range(df_date_t start, df_date_t end, df_interval_t interval) {
+    df_column_t column = make_datetime_range(start, end, interval);
+    column.data_type = DF_TYPE_TIME;
+    return column;
+  }
+
+  inline static df_column_t make_time_range(const char* start, const char* end, df_interval_t interval) {
+    df_column_t column = make_datetime_range(df_date_t(start, DF_TIME_FORMAT), df_date_t(end, DF_TIME_FORMAT), interval);
+    column.data_type = DF_TYPE_TIME;
+    return column;
+  }
 
 
+
+  // == random 
 
   static df_column_t make_random_int32_range(int min, int max, long length);
 
@@ -702,11 +828,6 @@ public:
   static df_column_t make_random_float32_range(float min, float max, long length);
 
   static df_column_t make_random_float64_range(double min, double max, long length);
-  
-
-  static df_column_t make_date_range(df_date_t start, df_date_t end, df_interval_t interval);
-  
-  static df_column_t make_datetime_range(df_date_t start, df_date_t end, df_interval_t interval);
 
 
 
@@ -755,52 +876,12 @@ public:
   inline df_column_int32_t(const std::initializer_list<int>& int32_list) {
     init2<int>(DF_TYPE_INT32, int32_list);
   }
-
-  static df_column_t range(int start, int end, int interval) {
-    if (interval == 0) {
-      throw df_exception_t("interval couldn't be 0");
-    }
-    
-    long length = (end - start) / interval;
-    if (length < 0) {
-      throw df_exception_t("endless numbers");
-    }
-
-    df_column_t column(DF_TYPE_INT32, length);
-    uint8_t* p = outside_write_data(column, length);
-     
-    for (; start < end; start += interval) {
-      df_value_write_long_int(start, p);
-      p += DF_TYPESIZE_INT32;
-    }
-    return column;
-  }
 };
 
 class df_column_int64_t : public df_column_t {
 public:
   inline df_column_int64_t(const std::initializer_list<long>& int64_list) {
     init2<long>(DF_TYPE_INT64, int64_list);
-  }
-
-  static df_column_t range(long start, long end, long interval) {
-    if (interval == 0) {
-      throw df_exception_t("interval couldn't be 0");
-    }
-
-    long length = (end - start) / interval;
-    if (length < 0) {
-      throw df_exception_t("endless numbers");
-    }
-
-    df_column_t column(DF_TYPE_INT64, length);
-    uint8_t* p = outside_write_data(column, length);
-     
-    for (; start < end; start += interval) {
-      df_value_write_long_long(start, p);
-      p += DF_TYPESIZE_INT64;
-    }
-    return column;
   }
 };
 
@@ -840,25 +921,6 @@ public:
   inline df_column_date_t(const std::initializer_list<df_date_t>& date_list) {
     init2<df_date_t>(DF_TYPE_DATE, date_list);
   }
-
-  static df_column_t range(df_date_t start, df_date_t end, df_interval_t interval) {
-    int direction = interval.get_direction();
-    if (direction == 0) {
-      throw df_exception_t("interval couldn't be 0");
-    }
-
-    if (((time_t)end - (time_t)start) * direction < 0) {
-      throw df_exception_t("endless numbers");
-    }
-
-    df_column_t column(DF_TYPE_DATE);
-    
-    for (; start <= end; start += interval) {
-      column.push_back(start);
-    }
-    
-    return column;
-  }
 };
 
 class df_column_time_t : public df_column_t {
@@ -875,8 +937,6 @@ public:
       p += DATA_SIZE;
     }
   }
-
-  static df_column_int32_t range(df_date_t start, df_date_t end, df_interval_t interval);
 };
 
 class df_column_datetime_t : public df_column_t {
@@ -884,8 +944,6 @@ public:
   inline df_column_datetime_t(const std::initializer_list<df_date_t>& datetime_list) {
     init2<df_date_t>(DF_TYPE_DATETIME, datetime_list);
   }
-
-  static df_column_t range(df_date_t start, df_date_t end, df_interval_t interval);
 };
 
 

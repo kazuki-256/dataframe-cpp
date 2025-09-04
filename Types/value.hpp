@@ -158,6 +158,11 @@ constexpr df_value_load_callback_t DF_VALUE_LOAD_CALLBACKS[DF_TYPE_COUNT] = {
 };
 
 
+
+inline df_value_load_callback_t df_value_get_load_callback(df_type_t type) {
+    return DF_VALUE_LOAD_CALLBACKS[df_type_get_typeid(type)];
+}
+
 inline df_value_t df_value_load(const void* src, df_type_t type) {
     df_error_if_null_pointer(src, 0);
 
@@ -222,9 +227,12 @@ constexpr df_value_is_null_callback_t DF_VALUE_IS_NULL_CALLBACKS[DF_TYPE_COUNT] 
 
 
 
+inline df_value_is_null_callback_t df_value_get_is_null_callback(df_type_t type) {
+    return DF_VALUE_IS_NULL_CALLBACKS[df_type_get_typeid(type)];
+}
+
 inline bool df_value_is_null(df_value_t value, df_type_t type) {
-    df_value_is_null_callback_t callback =
-        DF_VALUE_IS_NULL_CALLBACKS[df_type_get_typeid(type)];
+    df_value_is_null_callback_t callback = df_value_get_is_null_callback(type);
     
     if (callback == NULL) {
         df_debug6("invalid load for type %s", df_type_get_string(type));
@@ -724,7 +732,9 @@ constexpr df_value_write_callback_t DF_VALUE_WRITE_CALLBACKS[DF_TYPE_COUNT][DF_T
 
 
 
-
+inline df_value_write_callback_t df_value_get_write_callback(df_type_t src_type, df_type_t dest_type) {
+    return DF_VALUE_WRITE_CALLBACKS[df_type_get_typeid(src_type)][df_type_get_typeid(dest_type)];
+}
 
 inline df_value_t df_value_write(df_value_t src, df_type_t src_type, void* dest, df_type_t dest_type) {
     df_error_if_null_pointer(dest, 0);

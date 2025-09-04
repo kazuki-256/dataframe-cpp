@@ -1,97 +1,58 @@
 #ifndef _DF_DATAFRAME_HPP_
 #define _DF_DATAFRAME_HPP_
 
+#ifndef _DF_CONFIG_HPP_
+#include "../config.hpp"
+#endif
+
 #ifndef _DF_COLUMN_HPP_
 #include "column.hpp"
 #endif
 
-#include <unordered_map>
 
 
 
-
-typedef raw<>& (*df_row_get_by_string)(void* userptr, const char* colName);
-typedef raw<>& (*df_row_get_by_index)(void* userptr, int index);
-typedef int (*df_row_get_length)(void* userptr);
-typedef void (*df_row_release)(void* userptr);
-
-
-
-class df_process;
-
-
-
-
-// template for df_row and df_const_row
-class basic_row {
+class df_row_t {
 protected:
-  void* userptr;
+  std::vector<std::pair<const std::string*, df_column_t::iterator>> named_iter_list;
 
-  row_get_by_string funcGetByString;
-  row_get_by_index funcGetByIndex;
+  df_row_t(std::vector<df_named_column_t>& init_named_columns) {
+    const int COUNT = init_named_columns.size();
+    named_iter_list.resize(COUNT);
 
-  row_get_length funcGetLength;
-
-  row_release funcRelease;
-
-
-  void setPtr(void* _userptr);
-
-public:
-  ~basic_row();
-
-  int getLength() const;
-};
-
-
-class row : public basic_row {
-public:
-  row(void* _userptr,
-        row_get_by_string getByString,
-        row_get_by_index getByIndex,
-        row_get_length getLength,
-        row_release release)
-  {
-    userptr = _userptr;
-    funcGetByString = getByString;
-    funcGetByIndex = getByIndex;
-    funcGetLength = getLength;
-    funcRelease = release;
+    for (int i = 0; i < COUNT; i++) {
+      df_named_column_t& named_column = init_named_columns[i];
+      named_iter_list[i] = {&named_column.first, named_column.second.begin()};
+    }
   }
 
-  raw<>& operator[](const char* colName) {
-    return funcGetByString(userptr, colName);
+public:
+  df_row_t& operator++() {
+    for (int i = 0; i < named_iter_list.size(); i++) {
+      named_iter_list[i].second++;
+    }
   }
 
-  raw<>& operator[](int index) {
-    return funcGetByIndex(userptr, index);
+  bool is_end() const {
+    return named_iter_list[0].second.is_end();
+  }
+
+  df_object_t& operator[](const char* name) {
+    for (std::pair<const std::string*, df_column_t::iterator>& named_iter : named_iter_list) {
+      if (named_iter.first->compare(name) == 0) {
+        return *named_iter.second;
+      }
+    }
+    throw df_exception_out_of_index();
   }
 };
 
 
-class df_const_row : public basic_row {
-public:
-  df_const_row(void* _userptr,
-        df_row_get_by_string getByString,
-        df_row_get_by_index getByIndex,
-        df_row_get_length getLength,
-        df_row_release release)
-  {
-    userptr = _userptr;
-    funcGetByString = getByString;
-    funcGetByIndex = getByIndex;
-    funcGetLength = getLength;
-    funcRelease = release;
-  }
+class df_const_row_t : df_row_t {
 
-  const raw<>& operator[](const char* colName) const {
-    return funcGetByString(userptr, colName);
-  }
-
-  const raw<>& operator[](int index) const {
-    return funcGetByIndex(userptr, index);
-  }
 };
+
+
 
 
 
@@ -99,33 +60,39 @@ public:
 
 
 class dataframe {
-  std::unordered_map<df_string, df_column<void*>> columns;
+  std::vector<df_named_column_t> columns;
 
 public:
   ~dataframe() {
-
+    columns.clear();
   }
 
 
-
-  dataframe(const std::initializer_list<std::pair<const char*, df_column<void*>>>& _columns) {
+  dataframe(const std::initializer_list<df_named_column_t>& init_column_list) {
     df_debug4("create dataframe 1");
 
-    for (auto& pair : _columns) {
-      columns.insert(pair);
+    columns.resize(init_column_list.size());
+
+    for (auto& pair : init_column_list) {
+      columns[0] = pair;
     }
   }
 
-  dataframe(const std::initializer_list<df_string>& columnNames) {
-    df_debug4("create dataframe 2");
 
-    for (const df_string& name : columnNames) {
-      columns.insert({name, df_column<void*>()});
-    }
+
+
+  // == move ==
+
+  dataframe(dataframe&& src) {
+    columns = std::move(src.columns);
   }
 
 
   // == copy ==
+
+  dataframe(dataframe& src) {
+    columns = src.columns;
+  }
 
   dataframe& operator=(dataframe& src) {
     if (!columns.empty()) {
@@ -134,20 +101,6 @@ public:
 
     columns = src.columns;
     return *this;
-  }
-
-  dataframe(dataframe& src) {
-    columns = src.columns;
-  }
-
-  // == move ==
-
-  dataframe(dataframe&& src) {
-    
-  }
-
-  dataframe& operator=(dataframe&& src) {
-    return *this;    
   }
 
 
@@ -159,23 +112,33 @@ public:
   }
 
   int get_row_count() const {
-    return (*columns.begin()).second.get_length();
+    return columns[0].second.get_length();
   }
   
 
 
-  df_column<df_undefined>& operator[](const char* name) {
-    return columns[name];
+  df_named_column_t& operator[](const char* name) {
+    for (df_named_column_t& named_column : columns) {
+      if (named_column.first.compare(name) == 0) {
+        return named_column;
+      }
+    }
+    throw df_exception_out_of_index();
   }
 
-  const df_column<df_undefined>& operator[](const char* name) const {
-    return columns.at(name);
+  const df_named_column_t& operator[](const char* name) const {
+    for (const df_named_column_t& named_column : columns) {
+      if (named_column.first.compare(name) == 0) {
+        return named_column;
+      }
+    }
+    throw df_exception_out_of_index();
   }
 
 
-  df_row& loc(int index);
+  df_row_t& loc(int index);
 
-  df_row& loc(int index) const;
+  df_row_t& loc(int index) const;
 
 
 
@@ -186,15 +149,17 @@ public:
     int column_count = get_column_count();
     int row_count = get_row_count();
 
-    std::vector<int> types(column_count);
-    std::vector<df_column<void*>::const_iterator> iters(column_count);
+    // loader, writer, iterator
 
-    os << "| ";
+    std::vector<int> types(column_count);
+    std::vector<> iters(column_count);
+
+    os << "|  ";
     int index = 0;
     for (auto& named_column : columns) {
-      os << named_column.first << " | ";
+      os << named_column.first << "  |  ";
       
-      types[index] = named_column.second.get_type();
+      types[index] = named_column.second.get_data_type();
       iters[index] = named_column.second.begin();
       index++;
     }
@@ -206,7 +171,7 @@ public:
       for (int column = 0; column < column_count; column++) {
         auto& iter = iters[column];
 
-        os << (*iter).c_str(types[column]) << " | ";
+        os << (*iter). << " | ";
         iter++;
       }
       os << "\n";
