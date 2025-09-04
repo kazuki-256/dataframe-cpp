@@ -243,6 +243,13 @@ class df_query_t {
   - df_column_t の継承クラス作成
   - df_column_t::range_<type>() 追加
 
+- 2025-08-23:
+  - types/byte.hpp から types/mem.hpp に変更、void* を通して汎用処理をするシステムにした
+
+- 2025-08-20:
+  - テンプレート型構造を破棄
+  - コールバックテーブルを使用した types/byte.hpp データ処理コアを作成
+
 - 2025-08-17:
 
   - fix `df_column<>` memory problem
