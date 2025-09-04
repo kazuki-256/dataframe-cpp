@@ -233,6 +233,16 @@ class df_query_t {
 
 ## Logs
 
+- 2025-09-04:
+  - コード総行数3000突破
+  - df_column_t::range_datetime() 高速化
+  - df_column_t::begin() + index が可能にする
+  - バグ修正
+
+- 2025-09-02:
+  - df_column_t の継承クラス作成
+  - df_column_t::range_<type>() 追加
+
 - 2025-08-17:
 
   - fix `df_column<>` memory problem
