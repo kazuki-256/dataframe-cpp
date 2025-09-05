@@ -5,7 +5,7 @@
 | programmer  | かずき256      |
 | :---------- | :------------- |
 | version     | beta 1.0.0     |
-| last update | 2025/08/14     |
+| start date  | 2025/08/14     |
 | state       | developmenting |
 
 ## init
@@ -66,8 +66,11 @@ int main(int argc, char** argv) {
 #include <iostream>
 
 int main(int argc, char** argv) {
-    df_column_t columnA = df_column_t::make_date_range("2005-1-1", "2010-1-1", df_interval_t("1 years"));
-    df_column_t  
+    // I will rename it to df_range_<type>()
+    df_column_t date = df_column_t::range_date("2000-1-1", "2025-1-1", "1 years");
+    df_column_t index = df_column_t::range_int32(0, 25);
+
+    
 
     std::cout << column << "\n";
     return 0;
@@ -75,13 +78,14 @@ int main(int argc, char** argv) {
 
 ```
 
-## Features
+## **Features**
 
-1. read/write data frame from/to .csv, .xlsx, .html, .db
+1. read/write dataframe from/to .csv, .xlsx, .html, .db
 2. vector operation
 3. SQL execution
 4. OpenCV::RandomForest
-5. SocketSQL to host SQL server
+5. host SQL server
+6. gpu acceleration by libcuDL
 
 ## depends (no anything depending now)
 
@@ -90,148 +94,183 @@ int main(int argc, char** argv) {
 3. OpenCV (if you want to use RandomForest, ploting)
 4. Sqlite3 (to read/write .db)
 
-## **Classes**
 
-### **df_date_t**
 
-Encapsulation of c `time_t`
+---
 
-```cpp
-class df_date_t {
-  df_date_t(const char* strdate, const char* datefmt = DEFAULT);
+## **Documents**
 
-  operator time_t();
-  df_date_t& operator+(df_interval_t& interval);
+### **dataframe.cpp**
 
-  const char* c_str(const char* datefmt = DEFAULT, char* buffer = DEFAULT, size_t buffer_size = DEFAULT) const;
-};
-```
 
-### **df_interval_t**
-
-structure to offset df_date_t
+**sample**
 
 ```cpp
-class df_interval_t {
-  int years, months, days;
-  int hours, mintues, seconds;
-
-  df_interval_t(const char* fmt, ...);
-
-  const char* c_str(const char* strdate = DEFAULT, char* buffer = DEFAULT, size_t buffer_size = DEFAULT) const;
+// == create df ==
+df_dataframe_t df = {
+    // typed column having faster init, but not supporting null
+    // typed column same to normal column but having different init method
+    {"id", df_column_int32_t{1, 2, 3, 4, 5}},
+    {"name", df_column_text_t{"kazuki", "B", "C", "D", "F"}}
 };
+
+// == print df information ==
+
+std::cout << "column count: " << df.get_column_count() << "\n";
+std::cout << "row count: " << df.get_row_count() << "\n";
+
+// == print df ==
+std::cout << "df before modified\n";
+std::cout << df << "\n";
+
+
+// == edit data ==
+// get data targeter from column "name" second  data
+// you can skip storing df_object_t to `df["name"][1] = value`
+df_object_t object = df["name"][1];
+
+
+// modify to "hello world"
+object = "hello world";
+
+// print object
+std::cout << "df[\"name\"][1] modified to " << object << "\n";
+
+
+// == print df modified ==
+std::cout << "df after modified\n";
+std::cout << df << "\n";
+
 ```
 
-### **df_object_t**
 
-object targeter to edit data, create own data or get `df_object_t` from `column_t`, `dataframe_t` or `query_t`
+**classes**
 
-```cpp
-class df_object_t {
-  df_object(type_t type);
+df_dataframe_t:
+- df_dataframe_t(const_list_pair_name_column);
 
-  template<typename T> df_object_t& operator=(const T& value);
-  template<typename T> df_object_t& operator!=(const T& other);
+- df_dataframe_t(const_copy_dataframe);
+- df_dataframe_t(move_dataframe);
+- df_dataframe_t& operator=(const_copy_dataframe);
+- df_dataframe_t& operator=(move_dataframe);
 
-  template<typename T> operator T() const;
+- int get_column_count() const;
+- long get_row_count() const;
 
-  std::string& to_string() const;
-  friend ostream& operator<<() const;    // std::cout << object;
-};
-```
+- for (pair_name_column : dataframe);
+- df_column_t& operator[](column_name);
+- df_row_t loc(row_index);
 
-### **df_row_t**
+- std::ostream& write_ostream(ostream) const;
+- static std::ostream& operator<<(ostream, const_dataframe);
 
-row targeter to edit row objects
 
-```cpp
-class df_row_t {
-  df_object_t& operator[](const char* column_name);
+df_column_t:
+- df_column_t(const_list_object, capacity = 4096);
+- df_column_t(type, capacity = 4096);
 
-  int get_column_count() const;
+- df_column_t(const_copy_column);
+- df_column_t(move_colunn);
+- df_column_t& operator=(const_copy_column);
+- df_column_t& operator=(move_colunn);
 
-  iterator begin();    // for (df_object_t& object : row);
-  iterator end();
+- long get_length() const;
 
-  std::string& to_string() const;
-  friend ostream& operator<<() const;    // std::cout << row;
-};
-```
+- for (object : column);
+- df_object_t operator[](data_index);
 
-### **df_column_t<df_type_t>**
+- std::ostream& write_ostream(ostream, column_name) const;
+- static ostream& operator<<(ostream, const_column_name);
 
-```cpp
-template<df_type_t TYPE = DF_UNDEFINED>  // for init column, not different in use
-class df_column_t {
-  df_column_t(const std::vector<df_raw_t<TYPE>>& raws);
 
-  df_object_t& operator[](int index);
-  int get_length() const;
+df_object_t:
+- template<typename T> df_object_t(const_T_value);
 
-  iterator begin();    // for (df_object_t& object : column)
-  iterator end();
+- df_object_t(const_copy_object) = delete;
+- df_object_t(move_object);
+- df_object_t operator=(const_copy_object);
+- df_object_t operator=(move_object);
 
-  std::string to_string() const;
-  friend ostream& operator<<() const;    // std::cout << column;
-};
-```
+- bool is_null() const;
+- bool is_locked() const;
 
-### **df_dataframe_t**
+- template<typename T> operator T() const;
+- template<typename T> operator=(const_T_value);
+- template<typename T> operator<<(const_T_value);
 
-dataframe object
+- ostream std::ostream operator<<(ostream, const_object);
 
-```cpp
-class df_dataframe_t {
-  df_dataframe_t(const std::vector<std::pair<std::string, df_column<DF_UNDEFINED>>>& raws);
 
-  df_column& operator[](const char* name);
-  df_row& loc(int index);
+df_date_t:
+- df_date_t(t = 0);
+- df_date_t(const_char_to_date);
+- operator time_t() const;
+- operator std::string() const;
+- int parse(const_char_to_date);
+- df_date_t& operator+(time_interval)
 
-  int get_column_count() const;
-  int get_row_count() const;
+df_interval_t:
+- int year, month, day, hour, minute, second;
+- df_interval_t(const_char_to_time_format, ...);
+- time_t to_const_value() const;
+- bool is_const_value() const;
+- operator std::string() const;
 
-  iterator begin();    // for (df_row_t& row : dataframe)
-  iterator end();
 
-  std::string to_string() const;
-  friend ostream& operator<<() const;    // std::cout << column;
 
-  // == sql ==
-  df_query_t as(const char* name) const;
-  df_query_t select(const char* sql) const;
-  // ...
-};
-```
+### **vector.cpp**
 
-### **df_query_t**
+methods:
+- df_range_...(start, end, interval);
+- df_randrange_...(min, max, length);
+- df_column_t + value, df_column_t - value, ...
+- df_column_t + df_column_t, df_column_t - df_column_t, ...
 
-query to process data by sql commands or vector operation (data is not handle by sql)
 
-```cpp
-class df_query_t {
-  // == sql commands ==
-  df_query_t& select(const char* sql);
-  df_query_t& where(const char* sql);
-  df_query_t& mutatue(const char* sql);
-  df_query_t& join(df_dataframe_t& df, const char* as_name, const char* filter_sql);
-  df_query_t& group_by(const char* column_name);
-  df_query_t& order_by(const char* column_name, int desc = DF_ASC);
-  
-  // == vector operation ==
-  df_query& operator+(double val);
-  df_query& operator-(double val);
-  // ...
+### **query.cpp**
 
-  // == execute/convert ==
-  operator df_dataframe_t() const;
-  operator df_column_t<DF_UNDEFINED>() const;
+methods in column_t:
+- df_query_t df_column_t::to_query(name);
 
-  iterator begin() const;    // for (df_row_t& row : query)
-  iterator end() const;
-};
-```
+methods in dataframe_t:
+- df_query_t to_query(name);
+- df_query_t select(sql);
+- df_query_t where(sql);
+- df_query_t join(dataframe, as_name, where_sql);
+- df_query_t group_by(column_name);
+- df_query_t order_by(column_name, 1 || -1);
 
-## Logs
+methods in query_t:
+- operator df_column_t();
+- operator df_dataframe_t();
+- df_query_t& select(sql);
+- df_query_t& where(sql);
+- df_query_t& join(dataframe, as_name, where_sql);
+- df_query_t& group_by(column_name);
+- df_query_t& order_by(column_name, 1 || -1);
+
+
+
+---
+
+## **Logs**
+
+- 2025-09-04:
+  - コード総行数3000突破
+  - df_column_t::range_datetime() 高速化
+  - df_column_t::begin() + index が可能にする
+  - バグ修正
+
+- 2025-09-02:
+  - df_column_t の継承クラス作成
+  - df_column_t::range_<type>() 追加
+
+- 2025-08-23:
+  - types/byte.hpp から types/mem.hpp に変更、void* を通して汎用処理をするシステムにした
+
+- 2025-08-20:
+  - テンプレート型構造を破棄
+  - コールバックテーブルを使用した types/byte.hpp データ処理コアを作成
 
 - 2025-08-17:
 
