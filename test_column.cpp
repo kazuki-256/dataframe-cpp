@@ -1,5 +1,6 @@
 #define DF_DEBUG_LEVEL 3
 #include "types/column.hpp"
+#include <simpdata.h>
 
 int main(int argc, char** argv) {
     struct timespec start, end;
@@ -12,6 +13,6 @@ int main(int argc, char** argv) {
 
     std::cout << "first: " << column[0] << " " << column[1] << " " << column[2] << "\n";
     std::cout << "last: " << column[-3] << " " << column[-2] << " " << column[-1] << "\n";
-
+    _mm256_abs_ph
     return 0;
 }

@@ -169,6 +169,7 @@ protected:
   TLinkableList<df_mem_block_t> blocks;
   long length;
   df_type_t data_type;
+  bool allow_null;
 
   std::set<df_column_t*> be_foregined;  // SQL foregined by who (not usable)
   df_column_t* foregin_to = NULL;       // SQL foregin key (not usable)
