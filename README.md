@@ -111,7 +111,7 @@ df_dataframe_t df = {
     // typed column having faster init, but not supporting null
     // typed column same to normal column but having different init method
     {"id", df_column_int32_t{1, 2, 3, 4, 5}},
-    {"name", df_column_text_t{"kazuki", "B", "C", "D, "F"}}
+    {"name", df_column_text_t{"kazuki", "B", "C", "D", "F"}}
 };
 
 // == print df information ==
@@ -191,8 +191,12 @@ df_object_t:
 - df_object_t operator=(const_copy_object);
 - df_object_t operator=(move_object);
 
+- bool is_null() const;
+- bool is_locked() const;
+
 - template<typename T> operator T() const;
 - template<typename T> operator=(const_T_value);
+- template<typename T> operator<<(const_T_value);
 
 - ostream std::ostream operator<<(ostream, const_object);
 
