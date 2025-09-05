@@ -9,17 +9,14 @@ features:
 
 */
 
-#include <iostream>
-#ifndef _DF_TYPE_OBJECT_HPP_
-#define _DF_TYPE_OBJECT_HPP_
+#pragma once
 
-#ifndef _DF_CONFIG_HPP_
+
 #include "../config.hpp"
-#endif
-
-#ifndef _DF_TYPE_BYTE_HPP_
 #include "value.hpp"
-#endif
+
+#include <vector>
+
 
 
 
@@ -32,28 +29,32 @@ public:
 
 
 
-
 class df_object_t {
   friend class df_mem_block_t;
   friend class df_column_t;
   
-  void* target;         // target's target, could be owns or column target
-  df_value_t preloaded; // preloaded target preloaded
-  bool owns_memory;     // is the target owned by this object?
-  df_type_t data_type;  // data type
+  bool*     target_null = NULL;
+  void*     target_date = NULL;
+  df_type_t target_type = DF_TYPE_INT32;
 
-  std::vector<std::string>* category_titles;
+  df_value_t  preloaded   = 0;
+  bool        self_memory = false;
+  bool        lock_state  = false;
 
-  constexpr df_object_t() : target(NULL), preloaded(), owns_memory(false), data_type(DF_TYPE_NULL), category_titles(NULL) {}
+  std::vector<std::string>* category_titles = NULL;
 
-  inline void set_target(void* target, df_type_t target_type, df_value_load_callback_t loader) {
+
+
+
+
+  inline void set_target(void* target, df_value_load_callback_t loader) {
     target = target;
     preloaded = loader(target);
-    data_type = target_type;
   }
 
   inline void set_target(void* target, df_type_t target_type) {
-    set_target(target, target_type, df_value_get_load_callback(target_type));
+    set_target(target, df_value_get_load_callback(target_type));
+    data_type = target_type;
   }
 
 
@@ -91,8 +92,8 @@ public:
     df_debug2("create object TEXT");
 
     init(DF_TYPE_TEXT);
-    new (target) df_string_t(const_string);
-    preloaded = df_value_load_string(target);
+    new (target) std::string(const_string);
+    preloaded = df_value_load_struct(target);
   }
 
   df_object_t(const char*&) = delete;
@@ -129,7 +130,12 @@ public:
   }
 
   inline df_object_t& operator=(const char* const_string) {
-    df_string_t str = const_string;
+    if (data_type == DF_TYPE_TEXT) {
+      *(std::string*)target = const_string;
+      return *this;
+    }
+
+    std::string str = const_string;
     df_value_t src_value = &str;
 
     preloaded = df_value_write(src_value, DF_TYPE_TEXT, target, data_type);
@@ -153,23 +159,18 @@ public:
     return output;
   }
 
-  inline operator std::string() const {
-    df_debug2("format %s -> TEXT", df_type_get_string(data_type));
+  // == is_locked ==
 
-    df_string_t output;
-    df_value_write(preloaded, data_type, &output, DF_TYPE_TEXT);
-    return output.value_or("null");
+  inline bool is_locked() const {
+    return lock_state;
   }
 
-
-  // == is valid / invalid ==
-
-  inline bool is_valid() const {
-    return data_type != DF_TYPE_NULL;
+  inline bool is_targeter() const {
+    return owns_memory == false;
   }
 
-  inline bool is_invalid() const {
-    return data_type == DF_TYPE_NULL;
+  inline bool is_null() const {
+    return *target_null;
   }
 
 
@@ -182,11 +183,14 @@ public:
   // == string ==
 
   inline std::string to_string() const {
+    if (is_null()) {
+      return "null";
+    }
     return (std::string)*this;
   }
 
   friend inline std::ostream& operator<<(std::ostream& stream, const df_object_t& object) {
-    return stream << (std::string)object;
+    return stream << object.to_string();
   }
 };
 
@@ -195,6 +199,3 @@ public:
 
 
 
-
-
-#endif // _DF_TYPE_OBJECT_HPP_

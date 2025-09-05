@@ -1,5 +1,4 @@
-#ifndef _DF_DATE_HPP_
-#define _DF_DATE_HPP_
+#pragma once
 
 #ifndef _DF_CONFIG_HPP_
 #include "../config.hpp"
@@ -333,10 +332,10 @@ public:
 
 
 class df_date_t {
-  time_t t;
+  time_t t = DF_NULL_DATETIME;
 
 public:
-    inline df_date_t(time_t _t = DF_NULL_DATETIME) { t = _t; }
+    inline df_date_t(time_t t) : t(t) {}
 
     inline df_date_t(const char* strdate, const char* fmt = DF_DATETIME_FORMAT) {
         parse_date(strdate, fmt);
@@ -349,10 +348,7 @@ public:
 
     inline df_date_t& parse_date(const char* strdate, const char* fmt = DF_DATETIME_FORMAT) {
         struct tm tm{};
-        if (df_parse_time(strdate, fmt, &tm)) {
-            t = DF_NULL_DATETIME;
-        }
-        else {
+        if (df_parse_time(strdate, fmt, &tm) == 0) {
             t = mktime(&tm);
         }
         return *this;
@@ -449,6 +445,3 @@ public:
 };
 
 
-
-
-#endif // _DF_DATE_HPP_

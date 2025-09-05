@@ -1,4 +1,5 @@
-#include "types/object.hpp"
+#include "type/object.hpp"
+#include "type/date.hpp"
 #include <iostream>
 
 int main(int argc, char** argv) {
@@ -12,6 +13,7 @@ int main(int argc, char** argv) {
 
     // object type would not chnage after created, so objectA would be 3
     objectA = 3.1416;
+sizeof(df_object_t);
 
     // object copy
     objectB = objectC;
