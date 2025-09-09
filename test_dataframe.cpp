@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
     std::cout << "=== Original DataFrame ===\n";
     std::cout << df << "\n";
 
-    for (df_row_t&  row : df) {
+    for (df_row_t&  row : df.range_rows(3, 1)) {
         std::cout << row["name"] << " " << row["age"] << "\n";
     }
     std::cout << df << "\n";

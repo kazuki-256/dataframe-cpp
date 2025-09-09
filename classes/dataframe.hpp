@@ -34,13 +34,14 @@ protected:
     object_info_t* object_end = NULL;       // at info_start + length (dynamic), don't worry out of size since it is no possible to 
 
     long current = 0;
+    long interval = 0;
 
-    df_date_t last_update = (time_t)0;       // if column update, remake column_info and match_info
     df_date_t* check_update = NULL;
+    df_date_t last_update = (time_t)0;       // if column update, remake column_info and match_info
 
 
 
-    df_row_t(std::vector<df_named_column_t>& columns, df_date_t& check_update);
+    df_row_t(std::vector<df_named_column_t>* columns, df_date_t* check_update, long index, long interval);
 
     constexpr df_row_t(long index);
 
@@ -75,7 +76,7 @@ class df_const_row_t : public df_row_t {
     friend class df_dataframe_t;
 
 
-    df_const_row_t(const std::vector<df_named_column_t>& columns, const df_date_t& check_update);
+    df_const_row_t(const std::vector<df_named_column_t>* columns, const df_date_t* check_update, long index, long interval);
 
     constexpr df_const_row_t(long index);
 public:
@@ -161,13 +162,19 @@ public:
 
     // == iterator ==
 
-    df_row_t begin();
+    std::vector<df_named_column_t>::iterator begin();
 
-    df_row_t end();
+    std::vector<df_named_column_t>::iterator end();
 
-    df_const_row_t begin() const;
+    std::vector<df_named_column_t>::const_iterator begin() const;
 
-    df_const_row_t end() const;
+    std::vector<df_named_column_t>::const_iterator end() const;
+
+
+    
+    class range_rows_t;
+
+    range_rows_t range_rows(long start, long end, long interval);
 
 
 

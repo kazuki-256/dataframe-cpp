@@ -35,10 +35,10 @@ df_row_t::~df_row_t() {
 
 // == make ==
 
-df_row_t::df_row_t(std::vector<df_named_column_t>& columns, df_date_t& check_update) {
-    const int COLUMN_LENGTH = columns.size();
+df_row_t::df_row_t(std::vector<df_named_column_t>* columns, df_date_t* check_update, long index, long interval) {
+    const int COLUMN_LENGTH = columns->size();
 
-    unextended_columns = &columns;
+    unextended_columns = columns;
 
     matched_start = (matched_info_t*)calloc(COLUMN_LENGTH * 2 + 1, sizeof(matched_info_t));
     matched_end = matched_start + COLUMN_LENGTH * 2;
@@ -46,10 +46,11 @@ df_row_t::df_row_t(std::vector<df_named_column_t>& columns, df_date_t& check_upd
     object_start = (object_info_t*)malloc(COLUMN_LENGTH * sizeof(object_info_t));
     object_end = object_start;
 
-    current = 0;
+    current = index;
+    this->interval = interval;
 
-    this->last_update = check_update;
-    this->check_update = &check_update;
+    this->last_update = *check_update;
+    this->check_update = check_update;
 }
 
 
@@ -59,7 +60,7 @@ constexpr df_row_t::df_row_t(long index) : current(index) {}
 // == other ==
 
 df_row_t& df_row_t::operator++() {
-    current++;
+    current += interval;
     return *this;
 }
 
@@ -157,7 +158,11 @@ bool df_row_t::operator!=(const df_row_t& other) {
 
 // == make ==
 
-df_const_row_t::df_const_row_t(const std::vector<df_named_column_t>& columns, const df_date_t& check_update) : df_row_t((std::vector<df_named_column_t>&)columns, (df_date_t&)check_update) {}
+df_const_row_t::df_const_row_t(
+    const std::vector<df_named_column_t>* columns, const df_date_t* check_update,
+    long index, long interval
+)
+    : df_row_t((std::vector<df_named_column_t>*)columns, (df_date_t*)check_update, index, interval) {}
 
 
 constexpr df_const_row_t::df_const_row_t(long index) : df_row_t(index) {}
@@ -324,22 +329,79 @@ df_dataframe_t& df_dataframe_t::add_column(const std::string& name, const df_col
 
 // == iterate ==
 
-df_row_t df_dataframe_t::begin() {
-    return df_row_t(columns, last_column_update);
+std::vector<df_named_column_t>::iterator df_dataframe_t::begin() {
+    return columns.begin();
 }
 
-df_row_t df_dataframe_t::end() {
-    return df_row_t(get_row_count());
+std::vector<df_named_column_t>::iterator df_dataframe_t::end() {
+    return columns.end();
+}
+
+std::vector<df_named_column_t>::const_iterator df_dataframe_t::begin() const {
+    return columns.begin();
+}
+
+std::vector<df_named_column_t>::const_iterator df_dataframe_t::end() const {
+    return columns.end();
 }
 
 
-df_const_row_t df_dataframe_t::begin() const {
-    return df_const_row_t(columns, last_column_update);
-}
 
 
-df_const_row_t df_dataframe_t::end() const {
-    return df_const_row_t(get_row_count());
+class df_dataframe_t::range_rows_t {
+    friend class df_dataframe_t;
+
+    df_dataframe_t* df;
+    long start_index;
+    long end_index;
+    long interval;
+    
+    range_rows_t(df_dataframe_t* df, long start_index, long end_index, long interval) {
+        this->df = df;
+        this->start_index = start_index;
+        this->end_index = end_index;
+        this->interval = interval;
+    }
+
+public:
+
+    df_row_t begin() {
+        return df_row_t(&df->columns, &df->last_column_update, start_index, interval);
+    }
+
+    df_row_t end() {
+        return df_row_t(end_index);
+    }
+
+
+    df_const_row_t begin() const {
+        return df_const_row_t(&df->columns, &df->last_column_update, start_index, interval);
+    }
+
+
+    df_const_row_t end() const {
+        return df_const_row_t(end_index);
+    }
+};
+
+
+df_dataframe_t::range_rows_t df_dataframe_t::range_rows(long start = 0, long end = -1, long interval = 1) {
+    if (interval == 0) {
+        throw df_exception_interval_couldnot_be_0();
+    }
+
+    const long LENGTH = get_row_count();
+
+    start = df_calculate_index(start, LENGTH);
+    end = df_calculate_index(end + 1, LENGTH);
+
+    long range = end - start;
+    if (range * interval < 0) {
+        throw df_exception_endless_range();
+    }
+    end = end - range % interval;
+
+    return range_rows_t(this, start, end, interval);
 }
 
 

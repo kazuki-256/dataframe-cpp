@@ -107,6 +107,12 @@ class df_exception_endless_range : df_exception_t {
   }
 };
 
+class df_exception_not_enough_memory : df_exception_t {
+  const char* what() const noexcept override {
+    return "not enough memory";
+  }
+};
+
 
 
 

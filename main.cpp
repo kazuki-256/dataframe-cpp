@@ -1,17 +1,9 @@
-#include "types/object.hpp"
-#include <iostream>
+#include "classes/column_new.cpp"
+
 
 int main(int argc, char** argv) {
-    // std::pair<std::string, df_column_t> column = {"values", {1, 2, 3, "123", 5}};
+    df_column_t column = {1, 2, 3, 4, 5};
 
-    // std::cout << "Column length: " << column.second.get_length() << std::endl;
-    // std::cout << "Column type: " << df_type_get_string(column.second.get_data_type()) << "\n\n";
-
-    // std::cout << column << "\n";
-
-    df_object_t object = "12345";
-
-    object = 321;
-    std::cout << (int)object << "\n";
+    std::cout << column << "\n";
     return 0;
 }

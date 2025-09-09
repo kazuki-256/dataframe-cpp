@@ -21,8 +21,8 @@ df_object_t::~df_object_t() {
 // == init ==
 
 void df_object_t::init_as_local() {
-    target_null = buffer;
-    target_data = target_null + sizeof(bool);
+    target_null = (bool*)buffer;
+    target_data = buffer + sizeof(bool);
 }
 
 
@@ -136,7 +136,7 @@ void df_object_t::move(df_object_t& other) noexcept {
         other.target_null = NULL;   // take local buffer control
     }
     else {
-        target_data = other.target_null;
+        target_data = (uint8_t*)other.target_null;
         target_null = other.target_null;
     }
 
@@ -169,7 +169,7 @@ df_object_t& df_object_t::operator=(df_object_t&& other) {
 
 // == set ==
 
-void df_object_t::set_target(uint8_t* target_null, uint8_t* target_data, df_value_load_callback_t loader) {
+void df_object_t::set_target(bool* target_null, uint8_t* target_data, df_value_load_callback_t loader) {
     this->target_null = target_null;
     this->target_data = target_data;
     this->target_preload = loader(target_data);
@@ -296,11 +296,11 @@ inline bool df_object_t::is_locked() const {
 }
 
 inline bool df_object_t::is_proxy() const {
-    return target_null != buffer;
+    return (uint8_t*)target_null != buffer;
 }
 
 inline bool df_object_t::is_variant() const {
-    return target_null == buffer;
+    return (uint8_t*)target_null == buffer;
 }
 
 

@@ -36,7 +36,7 @@ class df_object_t {
 
     std::vector<std::string>* category_titles = NULL;
 
-    uint8_t*    target_null     = NULL;
+    bool*    target_null     = NULL;
     uint8_t*    target_data     = NULL;
     df_value_t  target_preload;
     df_type_t   target_type     = DF_TYPE_UINT8;
@@ -61,7 +61,7 @@ class df_object_t {
 
 
 
-    void set_target(uint8_t* target_null, uint8_t* target_data, df_value_load_callback_t loader);
+    void set_target(bool* target_null, uint8_t* target_data, df_value_load_callback_t loader);
 
     void lock();
 

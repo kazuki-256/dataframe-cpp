@@ -120,6 +120,22 @@ constexpr char DF_DEFAULT_COLUMN_NAME[] = "COLUMN";
 
 
 
+inline long df_calculate_index(long index, const long LENGTH) {
+  if (index < 0) {
+    index = LENGTH - index;
+
+    if (index < 0) {
+      return index;
+    }
+  }
+  else if (index > LENGTH) {
+    return LENGTH;
+  }
+  return index;
+}
+
+
+
 /*
 df_string df_repr_string(const df_string& s) {
   df_string out = "\"";
