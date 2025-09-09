@@ -25,7 +25,7 @@ protected:
     struct matched_info_t;
     struct object_info_t;
 
-    std::vector<df_named_column_t>* unextended_columns;
+    std::vector<df_named_column_t>* unextended_columns = NULL;
 
     matched_info_t* matched_start = NULL;   // base size: (COLUMN_LENGTH * 2 + 1), realloc every p >= match_end
     matched_info_t* matched_end = NULL;     // at match_start + match_length
@@ -34,9 +34,13 @@ protected:
     object_info_t* object_end = NULL;       // at info_start + length (dynamic), don't worry out of size since it is no possible to 
 
     long current = 0;
-    df_date_t last_column_update = 0;       // if column update, remake column_info and match_info
 
-    df_row_t(std::vector<df_named_column_t>& columns);
+    df_date_t last_update = (time_t)0;       // if column update, remake column_info and match_info
+    df_date_t* check_update = NULL;
+
+
+
+    df_row_t(std::vector<df_named_column_t>& columns, df_date_t& check_update);
 
     constexpr df_row_t(long index);
 
@@ -58,6 +62,12 @@ public:
     iterator_t begin();
     
     iterator_t end();
+
+
+    
+    write_stream(std::ostream& os) const;
+
+    friend std::ostream& operator<<(std::ostream& os, const df_dataframe_t& df);
 };
 
 
@@ -65,7 +75,7 @@ class df_const_row_t : public df_row_t {
     friend class df_dataframe_t;
 
 
-    df_const_row_t(const std::vector<df_named_column_t>& columns);
+    df_const_row_t(const std::vector<df_named_column_t>& columns, const df_date_t& check_update);
 
     constexpr df_const_row_t(long index);
 public:

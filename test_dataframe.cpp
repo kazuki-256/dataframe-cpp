@@ -1,4 +1,4 @@
-#define DF_DEBUG_LEVEL 2
+#define DF_DEBUG_LEVEL 3
 #include "classes/dataframe.cpp"
 
 int main(int argc, char** argv) {

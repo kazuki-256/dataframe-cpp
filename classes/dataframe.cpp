@@ -16,7 +16,7 @@ struct df_row_t::object_info_t {
 
 
 struct df_row_t::matched_info_t {
-    void* address;
+    const void* address;
     object_info_t* object_info;
 };
 
@@ -24,37 +24,42 @@ struct df_row_t::matched_info_t {
 // == destroy ==
 
 df_row_t::~df_row_t() {
-    if (info_start) {
-        free(info_start);
+    if (matched_start) {
+        free(matched_start);
+    }
+    if (object_start) {
+        free(object_start);
     }
 }
 
 
 // == make ==
 
-df_row_t::df_row_t(std::vector<df_named_column_t>& columns) {
+df_row_t::df_row_t(std::vector<df_named_column_t>& columns, df_date_t& check_update) {
     const int COLUMN_LENGTH = columns.size();
 
     unextended_columns = &columns;
 
-    matched_start = (matched_info_t*)malloc((COLUMN_LENGTH * 2 + 1) * sizeof(matched_info_t));
+    matched_start = (matched_info_t*)calloc(COLUMN_LENGTH * 2 + 1, sizeof(matched_info_t));
     matched_end = matched_start + COLUMN_LENGTH * 2;
 
     object_start = (object_info_t*)malloc(COLUMN_LENGTH * sizeof(object_info_t));
-    object_end = object_start + COLUMN_LENGTH;
+    object_end = object_start;
 
     current = 0;
-    column_last_update = time(NULL);
+
+    this->last_update = check_update;
+    this->check_update = &check_update;
 }
 
 
-constexpr df_row_t::df_row_t(long index) {}
+constexpr df_row_t::df_row_t(long index) : current(index) {}
 
 
 // == other ==
 
 df_row_t& df_row_t::operator++() {
-    now++;
+    current++;
     return *this;
 }
 
@@ -67,13 +72,13 @@ df_row_t& df_row_t::operator*() {
 df_object_t& df_row_t::operator[](const char* name) {
     // == if column update, remake column_info and match_info ==
 
-    if (unextended_columns.last_column_update != last_column_update) {
+    if (*check_update != last_update) {
         // reset matched_info_t
-        memset(match_start, 0, match_end - match_start);
+        memset(matched_start, 0, matched_end - matched_start);
 
         // reset object_info_t
-        object_start = realloc(object_start, unextended_columns.get_column_count() * sizeof(object_info_t));
-        object_end = object_start + unextended_columns.get_column_count();
+        object_start = (object_info_t*)realloc(object_start, unextended_columns->size() * sizeof(object_info_t));
+        object_end = object_start + unextended_columns->size();
     }
     
     // == from matched cashe ==
@@ -81,31 +86,32 @@ df_object_t& df_row_t::operator[](const char* name) {
     matched_info_t* match_info;
     object_info_t* object_info;
 
-    for (match_info = match_start; match->address != NULL; match_info++) {
+    for (match_info = matched_start; match_info->address != NULL; match_info++) {
         // execute only matched
         if (match_info->address == name) {
             object_info = match_info->object_info;
-            goto label_make_matched;
+            goto label_get_data;
         }
     }
 
     // == from created object list ==
     for (object_info = object_start; object_info < object_end; object_info++) {
         if (object_info->name->compare(name) == 0) {
-            goto object_info;
+            goto label_make_matched;
         }
     }
 
     // == match from unextended_columns ==
     
-    for (df_named_column_t& column : unextended_columns) {
+    for (df_named_column_t& column : *unextended_columns) {
         // filter not matching
-        if (column.first->compare(name) != 0) {
+        if (column.first.compare(name) != 0) {
             continue;
         }
 
         // make object_info
-        *object_info = {&column.name, 0, column.begin()};
+        *object_info = {&column.first, 0, column.second.begin()};
+        object_end++;
 
         goto label_make_matched;
     }
@@ -115,7 +121,7 @@ df_object_t& df_row_t::operator[](const char* name) {
 label_make_matched:
     if (match_info >= matched_end) {
         int capacity = matched_end - matched_start;
-        matched_info_t* buffer = realloc(matched_start, (capacity * 2 + 1) * sizeof(matched_info_t));
+        matched_info_t* buffer = (matched_info_t*)realloc(matched_start, (capacity * 2 + 1) * sizeof(matched_info_t));
 
         if (buffer != NULL) {
             matched_start = buffer;
@@ -130,16 +136,17 @@ label_make_matched:
     }
 
 label_get_data:
-    if (column_info->last_index != current) {
-        column_info->iter += (current - column_info->last_index);
-        column_info->last_index = current;
+    if (object_info->last_index != current) {
+        object_info->iter += (current - object_info->last_index);
+        object_info->last_index = current;
     }
-    return *column_info->iter;
+
+    return *object_info->iter;
 }
 
 
 bool df_row_t::operator!=(const df_row_t& other) {
-    return now != other.now;
+    return current != other.current;
 }
 
 
@@ -150,7 +157,7 @@ bool df_row_t::operator!=(const df_row_t& other) {
 
 // == make ==
 
-df_const_row_t::df_const_row_t(const std::vector<df_named_column_t>& columns) : df_row_t((std::vector<df_named_column_t>&)columns) {}
+df_const_row_t::df_const_row_t(const std::vector<df_named_column_t>& columns, const df_date_t& check_update) : df_row_t((std::vector<df_named_column_t>&)columns, (df_date_t&)check_update) {}
 
 
 constexpr df_const_row_t::df_const_row_t(long index) : df_row_t(index) {}
@@ -186,8 +193,13 @@ df_dataframe_t::df_dataframe_t(const std::initializer_list<df_named_column_t>& s
     df_debug4("create df_dataframe_t by copy");
     columns.reserve(sources.size() * 2);
 
-    long length;
+    long length = sources.begin()->second.get_length();
+
     for (auto& pair : sources) {
+        if (length != pair.second.get_length()) {
+            throw df_exception_t("not same size columns!");
+        }
+
         columns.emplace_back(pair);
     }
 }
@@ -313,7 +325,7 @@ df_dataframe_t& df_dataframe_t::add_column(const std::string& name, const df_col
 // == iterate ==
 
 df_row_t df_dataframe_t::begin() {
-    return df_row_t(columns);
+    return df_row_t(columns, last_column_update);
 }
 
 df_row_t df_dataframe_t::end() {
@@ -322,7 +334,7 @@ df_row_t df_dataframe_t::end() {
 
 
 df_const_row_t df_dataframe_t::begin() const {
-    return df_const_row_t(columns);
+    return df_const_row_t(columns, last_column_update);
 }
 
 
