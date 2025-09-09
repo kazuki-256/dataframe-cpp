@@ -65,7 +65,7 @@ public:
 
 
     
-    write_stream(std::ostream& os) const;
+    std::ostream& write_stream(std::ostream& os) const;
 
     friend std::ostream& operator<<(std::ostream& os, const df_dataframe_t& df);
 };
