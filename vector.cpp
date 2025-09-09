@@ -16,7 +16,7 @@ df_column_t df_range_int32(int start, int end, int interval = 1) {
     }
 
     long length = (end - start) / interval;
-    if (interval < 0) {
+    if (length < 0) {
         throw df_exception_endless_range();
     }
 
@@ -24,7 +24,7 @@ df_column_t df_range_int32(int start, int end, int interval = 1) {
     df_mem_block_t* block = column.blocks.tlBack();
     uint8_t* p = block->get_data_start();
 
-    for (; start < end; start += interval, p += DF_TYPESIZE_INT32) {
+    for (; start != end; start += interval, p += DF_TYPESIZE_INT32) {
         df_value_write_long_long(start, p);
     }
     memset(block->get_null_start(), false, length);
@@ -43,7 +43,7 @@ df_column_t df_range_int64(long start, long end, long interval = 1) {
     }
 
     long length = (end - start) / interval;
-    if (interval < 0) {
+    if (length < 0) {
         throw df_exception_endless_range();
     }
 
@@ -51,7 +51,7 @@ df_column_t df_range_int64(long start, long end, long interval = 1) {
     df_mem_block_t* block = column.blocks.tlBack();
     uint8_t* p = block->get_data_start();
 
-    for (; start < end; start += interval, p += DF_TYPESIZE_INT64) {
+    for (; start != end; start += interval, p += DF_TYPESIZE_INT64) {
         df_value_write_long_long(start, p);
     }
     memset(block->get_null_start(), false, length);
