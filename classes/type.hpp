@@ -30,6 +30,7 @@ typedef enum df_typeid_t {
 } df_typeid_t;
 
 
+#define DF_TYPESIZE_NULL 1
 #define DF_TYPESIZE_POINTER 8
 
 #define DF_TYPESIZE_UINT8 1
@@ -71,6 +72,7 @@ typedef enum df_type_t {
 
   DF_TYPE_BOOL = DF_TYPEID_BOOL << DF_TYPE_SHIFT | DF_TYPESIZE_BOOL,          // bool
 
+
   // == alias ==
 
   DF_TYPE_SHORT = DF_TYPE_INT16,
@@ -82,10 +84,10 @@ typedef enum df_type_t {
 
 
 template<typename T>
-df_type_t df_type_get_type =
-    std::is_same_v<T, df_string_t> ? DF_TYPE_TEXT
-    : std::is_same_v<T, std::string> ? DF_TYPE_TEXT
+constexpr df_type_t df_type_get_type =
+    std::is_same_v<T, std::string> ? DF_TYPE_TEXT
     : std::is_same_v<T, const char*> ? DF_TYPE_TEXT
+    : std::is_same_v<T, char*> ? DF_TYPE_TEXT
 
     : std::is_pointer_v<T> ? DF_TYPE_POINTER
 
@@ -109,10 +111,6 @@ constexpr inline bool df_type_is_struct(df_type_t type) {
   return type == DF_TYPE_TEXT;
 }
 
-constexpr inline bool df_type_is_struct(df_type_t type) {
-  return type == DF_TYPE_TEXT;
-}
-
 constexpr inline int df_type_get_typeid(df_type_t type) {
   return type >> DF_TYPE_SHIFT;
 }
@@ -126,20 +124,21 @@ constexpr inline int df_type_get_size(df_type_t type) {
   return type & DF_SIZE_SHIFT;
 }
 
-const char* df_typeid_get_string(int type_id) {
-  constexpr static const char* TYPE_NAMES[DF_TYPE_COUNT] = {
-    "POINTER",
-    "UINT8", "SHORT", "INT", "LONG",
-    "FLOAT", "DOUBLE",
-    "TEXT", "CATEGORY",
-    "DATE", "TIME", "DATETIME", "INTERVAL",
-    "BOOL"
-  };
 
-  return type_id < DF_TYPE_COUNT ? TYPE_NAMES[type_id] : "INVALID_TYPE";
+constexpr const char DF_TYPE_NAMES[DF_TYPE_COUNT][9] = {
+  "POINTER",
+  "UINT8", "SHORT", "INT", "LONG",
+  "FLOAT", "DOUBLE",
+  "TEXT", "CATEGORY",
+  "DATE", "TIME", "DATETIME", "INTERVAL",
+  "BOOL"
+};
+
+constexpr const char* df_typeid_get_string(int type_id) {
+  return type_id < DF_TYPE_COUNT ? DF_TYPE_NAMES[type_id] : "INVALID_TYPE";
 }
 
-inline const char* df_type_get_string(df_type_t type) {
+constexpr const char* df_type_get_string(df_type_t type) {
   return df_typeid_get_string(df_type_get_typeid(type));
 }
 

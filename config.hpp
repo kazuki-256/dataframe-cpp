@@ -21,6 +21,14 @@ const char DF_VERSION[] = "beta 1.0.0";
 
 // == types ==
 
+class df_mem_iterator_t;
+class df_const_mem_iterator_t;
+
+class df_object_iterator_t;
+class df_const_object_iterator_t;
+
+
+
 typedef union df_value_t df_value_t;
 
 class df_exception_t;

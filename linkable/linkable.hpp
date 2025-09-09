@@ -174,10 +174,7 @@ public:
 
 
 
-    TLinkableList() {
-        tlFirst = tlLast = NULL;
-        tlOwner = NULL;
-    }
+    constexpr TLinkableList() {}
 
     TLinkableList(std::initializer_list<Object*> objects) {
         tlFirst = tlLast = NULL;

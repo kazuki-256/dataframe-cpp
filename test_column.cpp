@@ -1,18 +1,13 @@
 #define DF_DEBUG_LEVEL 3
-#include "types/column.hpp"
+#include "classes/column.cpp"
+#include "vector.cpp"
 #include <simpdata.h>
 
 int main(int argc, char** argv) {
-    struct timespec start, end;
-    clock_gettime(CLOCK_MONOTONIC, &start);
-    df_column_t column = df_column_t::range_date("100", "2025", "1 month");
-    clock_gettime(CLOCK_MONOTONIC, &end);
+    df_column_t days = df_range_datetime("2024", "2025", "1 week");
+    df_column_t names = {"kazuki", "hello world", "minecraft", "dataframe-cpp"};
 
-    printf("usetime: %lu ns\n", (end.tv_sec - start.tv_sec) * 1000000000 + (end.tv_nsec - start.tv_nsec));
-
-
-    std::cout << "first: " << column[0] << " " << column[1] << " " << column[2] << "\n";
-    std::cout << "last: " << column[-3] << " " << column[-2] << " " << column[-1] << "\n";
-    _mm256_abs_ph
+    std::cout << days << "\n";
+    std::cout << names << "\n";
     return 0;
 }

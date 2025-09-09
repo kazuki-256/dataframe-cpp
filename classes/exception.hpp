@@ -63,7 +63,10 @@
 
 
 class df_exception_t : public std::exception {
+protected:
   char* msg = NULL;
+
+  df_exception_t() {};
 public:
   df_exception_t(const char* fmt, ...) {
     va_list args;
@@ -91,6 +94,20 @@ class df_exception_out_of_index : df_exception_t {
     return "out of index";
   }
 };
+
+class df_exception_interval_couldnot_be_0 : df_exception_t {
+  const char* what() const noexcept override {
+    return "interval couldn't be 0";
+  }
+};
+
+class df_exception_endless_range : df_exception_t {
+  const char* what() const noexcept override {
+    return "endless range";
+  }
+};
+
+
 
 
 #define DF_RETURN_IF_NULL(mem, ret)\

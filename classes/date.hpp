@@ -8,7 +8,7 @@
 
 
 // parse month
-inline size_t df_parse_month(const char* strmonth, size_t n, int* month) {
+size_t df_parse_month(const char* strmonth, size_t n, int* month) {
     static const char* MONTHS[12] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
 
     for (int i = 0; i < 12; i++) {
@@ -21,7 +21,7 @@ inline size_t df_parse_month(const char* strmonth, size_t n, int* month) {
 }
 
 // parse weekday
-inline size_t df_parse_weekday(const char* strweek, size_t n, int* week) {
+size_t df_parse_weekday(const char* strweek, size_t n, int* week) {
     static const char* WEEKDAYS[7] = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
 
     for (int i = 0; i < 7; i++) {
@@ -224,7 +224,7 @@ public:
 
 
 
-    inline df_interval_t(const char* fmt) {
+    df_interval_t(const char* fmt) {
         const char* p = fmt;
         int value = 0;
         int c = *p;
@@ -298,7 +298,7 @@ public:
 
 
     // sum(years, months, ..., seconds), if total < 0, return -1. total == 0, return 0. total > 0, return 1
-    inline int get_direction() const {
+    int get_direction() const {
         int total = years + months + days + hours + minutes + seconds;
 
         return total < 0 ? -1
@@ -306,24 +306,24 @@ public:
             : 1;
     }
 
-    inline bool is_constant() const {
+    bool is_constant() const {
         return !(years || months);
     }
 
-    inline time_t calculate_constant() const {
+    time_t calculate_constant() const {
         return ((((years * 365 + months) * 30 + days) * 24 + hours) * 60 + minutes) * 60 + seconds;
     }
 
 
     // == formatting ==
     
-    inline const char* c_str(char* buffer = DF_STATIC_BUFFER, size_t buffer_size = DF_STATIC_BUFFER_LENGTH) const {
+    const char* c_str(char* buffer = DF_STATIC_BUFFER, size_t buffer_size = DF_STATIC_BUFFER_LENGTH) const {
         snprintf(buffer, buffer_size, "df_interval_t(%d years, %d months, %d days, %d hours, %d mintues, %d seconds)",
             years, months, days, hours, minutes, seconds);
         return buffer;
     }
 
-    inline operator std::string() const {
+    operator std::string() const {
             return std::string(c_str());
     }
 };
@@ -332,21 +332,21 @@ public:
 
 
 class df_date_t {
-  time_t t = DF_NULL_DATETIME;
+  time_t t;
 
 public:
-    inline df_date_t(time_t t) : t(t) {}
+    constexpr df_date_t(time_t t = 0) : t(t) {}
 
-    inline df_date_t(const char* strdate, const char* fmt = DF_DATETIME_FORMAT) {
+    df_date_t(const char* strdate, const char* fmt = DF_DATETIME_FORMAT) {
         parse_date(strdate, fmt);
     }
 
-    inline df_date_t(std::string& strdate, const char* fmt = DF_DATETIME_FORMAT) {
+    df_date_t(std::string& strdate, const char* fmt = DF_DATETIME_FORMAT) {
         parse_date(strdate.c_str(), fmt);
     }
 
 
-    inline df_date_t& parse_date(const char* strdate, const char* fmt = DF_DATETIME_FORMAT) {
+    df_date_t& parse_date(const char* strdate, const char* fmt = DF_DATETIME_FORMAT) {
         struct tm tm{};
         if (df_parse_time(strdate, fmt, &tm) == 0) {
             t = mktime(&tm);
@@ -355,7 +355,7 @@ public:
     }
 
 
-    inline df_date_t& operator=(const char* strdate) {
+    df_date_t& operator=(const char* strdate) {
         struct tm tm{};
         df_parse_time(strdate, DF_DATETIME_FORMAT, &tm);
         t = mktime(&tm);
@@ -364,12 +364,12 @@ public:
 
     // == interval ==
 
-    inline df_date_t& operator+=(time_t interval) {
+    df_date_t& operator+=(time_t interval) {
         t += interval;
         return *this;
     }
 
-    inline df_date_t& operator+(time_t interval) {
+    df_date_t& operator+(time_t interval) {
         t += interval;
         return *this;
     }
@@ -378,7 +378,7 @@ public:
     
 
 
-    inline df_date_t operator+(const df_interval_t& interval) const {
+    df_date_t operator+(const df_interval_t& interval) const {
         struct tm* tm = localtime(&t);
 
         struct tm dest{};
@@ -392,14 +392,14 @@ public:
         return df_date_t(mktime(&dest));
     }
 
-    inline df_date_t& operator+=(const df_interval_t& interval) {
+    df_date_t& operator+=(const df_interval_t& interval) {
         *this = *this + interval;
         return *this;
     }
 
 
 
-    inline df_date_t operator-(const df_interval_t& interval) const {
+    df_date_t operator-(const df_interval_t& interval) const {
         struct tm* tm = localtime(&t);
 
         struct tm dest{};
@@ -413,24 +413,29 @@ public:
         return df_date_t(mktime(&dest));
     }
 
-    inline df_date_t& operator-=(const df_interval_t& interval) {
+    df_date_t& operator-=(const df_interval_t& interval) {
         *this = *this - interval;
         return *this;
     }
 
 
-    inline operator time_t() const {
+    operator time_t() const {
         return t;
     }
 
 
     // == formatting ==
 
-    inline operator std::string() const {
-        return std::string(c_str());
+    operator std::string() const {
+        struct tm* tm = localtime(&t);
+
+        std::string s;
+        s.resize(129);
+        strftime(s.data(), s.capacity(), DF_DATETIME_FORMAT, tm);
+        return s;
     }
 
-    inline const char* c_str(const char* fmt = DF_DATETIME_FORMAT, char* buffer = DF_STATIC_BUFFER, size_t buffer_size = DF_STATIC_BUFFER_LENGTH) const {
+    const char* c_str(const char* fmt = DF_DATETIME_FORMAT, char* buffer = DF_STATIC_BUFFER, size_t buffer_size = DF_STATIC_BUFFER_LENGTH) const {
         struct tm* tm = localtime(&t);
         strftime(buffer, buffer_size, fmt, tm);
         return buffer;
@@ -439,7 +444,7 @@ public:
 
     // == std::cout ==
 
-    friend inline std::ostream& operator<<(std::ostream& stream, const df_date_t date) {
+    friend std::ostream& operator<<(std::ostream& stream, const df_date_t date) {
         return stream << date.c_str();
     }
 };

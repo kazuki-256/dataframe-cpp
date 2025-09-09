@@ -21,177 +21,142 @@ features:
 
 
 
-class df_null_t {
-public:
-  df_null_t() {};
-} DF_NULL;
+class df_null_t {};
+
+constexpr df_null_t DF_NULL;
 
 
 
 
 class df_object_t {
-  friend class df_mem_block_t;
-  friend class df_column_t;
-  
-  bool*     target_null = NULL;
-  void*     target_date = NULL;
-  df_type_t target_type = DF_TYPE_INT32;
+    friend class df_mem_block_t;
+    friend class df_object_iterator_t;
+    friend class df_const_object_iterator_t;
+    friend class df_column_t;
 
-  df_value_t  preloaded   = 0;
-  bool        self_memory = false;
-  bool        lock_state  = false;
+    std::vector<std::string>* category_titles = NULL;
 
-  std::vector<std::string>* category_titles = NULL;
+    uint8_t*    target_null     = NULL;
+    uint8_t*    target_data     = NULL;
+    df_value_t  target_preload;
+    df_type_t   target_type     = DF_TYPE_UINT8;
 
+    bool        lock_state  = false;
 
-
-
-
-  inline void set_target(void* target, df_value_load_callback_t loader) {
-    target = target;
-    preloaded = loader(target);
-  }
-
-  inline void set_target(void* target, df_type_t target_type) {
-    set_target(target, df_value_get_load_callback(target_type));
-    data_type = target_type;
-  }
+    uint8_t buffer[DF_MAX_TYPE_SIZE] = {};
 
 
-  inline void init(df_type_t as_type) {
-    data_type = as_type;
-    target = malloc(DF_MAX_TYPE_SIZE);
-    owns_memory = true;
-  }
+
+    void destroy();
+
+
+    constexpr df_object_t();
+
+    void init_as_local();   // basic init of free object
+
+
+    void copy(const df_object_t& other) noexcept;
+    
+    void move(df_object_t& other) noexcept;
+
+
+
+    void set_target(uint8_t* target_null, uint8_t* target_data, df_value_load_callback_t loader);
+
+    void lock();
+
+
+    inline void basic_set(df_type_t dest_type);
 
 public:
-  // == destroy ==
+    // == destroy ==
 
-  inline ~df_object_t() {
-    df_debug2("delete");
-
-    if (owns_memory) {
-      df_value_release(preloaded, data_type);
-      free(target);
-    }
-  }
+    ~df_object_t();
 
 
-  // == init ==
+    // == init ==
 
-  template<typename T>
-  inline df_object_t(const T& const_value) {
-    df_debug2("create object %s", df_type_get_string(df_type_get_type<T>));
+    template<typename T> df_object_t(const T& const_value);
 
-    init(df_type_get_type<T>);
-    new (target) T(const_value);
-    preloaded = df_value_load(target, data_type);
-  }
+    df_object_t(const char* const_string);
+    df_object_t(std::string&& other);
 
-  inline df_object_t(const char* const_string) {
-    df_debug2("create object TEXT");
+    df_object_t(df_null_t);
 
-    init(DF_TYPE_TEXT);
-    new (target) std::string(const_string);
-    preloaded = df_value_load_struct(target);
-  }
-
-  df_object_t(const char*&) = delete;
-  df_object_t(const df_object_t&) = delete;
+    df_object_t(const char*&) = delete;
 
 
 
-  // == move / copy ==
+    // == copy ==
 
-  df_object_t(df_object_t&& other) {
-    target = other.target;
-    preloaded = other.preloaded;
-    owns_memory = other.owns_memory;
-    data_type = other.data_type;
+    df_object_t(const df_object_t&) noexcept;
 
-    other.owns_memory = false;
-  }
-
-
-  inline df_object_t& operator=(const df_object_t& other) {
-    preloaded = df_value_write(other.preloaded, other.data_type, target, data_type);
-    return *this;
-  }
-
-
-  // == setter ==
-
-  template<typename SRC>
-  inline df_object_t& operator=(SRC src) {
-    df_value_t src_value = df_value_load(&src, df_type_get_type<SRC>);
-
-    preloaded = df_value_write(src_value, df_type_get_type<SRC>, target, data_type);
-    return *this;
-  }
-
-  inline df_object_t& operator=(const char* const_string) {
-    if (data_type == DF_TYPE_TEXT) {
-      *(std::string*)target = const_string;
-      return *this;
-    }
-
-    std::string str = const_string;
-    df_value_t src_value = &str;
-
-    preloaded = df_value_write(src_value, DF_TYPE_TEXT, target, data_type);
-    return *this;
-  }
-
-  df_object_t& operator=(const char*&) = delete;
-  df_object_t& operator=(uint8_t) = delete;
-  df_object_t& operator=(short) = delete;
+    df_object_t& operator=(const df_object_t& other);
 
 
 
-  // == convert data ==
+    // == move ==
 
-  template<typename T>
-  inline operator T() const {
-    df_debug2("convert object from type %s to %s", df_type_get_string(data_type), df_type_get_string(df_type_get_type<T>));
+    df_object_t(df_object_t&& other) noexcept;
 
-    T output;
-    df_value_write(preloaded, data_type, &output, df_type_get_type<T>);
-    return output;
-  }
-
-  // == is_locked ==
-
-  inline bool is_locked() const {
-    return lock_state;
-  }
-
-  inline bool is_targeter() const {
-    return owns_memory == false;
-  }
-
-  inline bool is_null() const {
-    return *target_null;
-  }
+    df_object_t& operator=(df_object_t&& other);
 
 
-  // == get type ==
 
-  inline df_type_t get_type() const {
-    return data_type;
-  }
+    // == set ==
 
-  // == string ==
+    template<typename T> df_object_t& operator=(const T src);
 
-  inline std::string to_string() const {
-    if (is_null()) {
-      return "null";
-    }
-    return (std::string)*this;
-  }
+    df_object_t& operator=(const char* src);
 
-  friend inline std::ostream& operator<<(std::ostream& stream, const df_object_t& object) {
-    return stream << object.to_string();
-  }
+    df_object_t& operator=(df_null_t);
+
+
+    df_object_t& operator=(const char*&) = delete;
+    df_object_t& operator=(uint8_t) = delete;
+    df_object_t& operator=(short) = delete;
+
+
+
+    template<typename T> df_object_t& operator<<(const T src);
+
+    df_object_t& operator<<(const char* src);
+
+    df_object_t& operator<<(const df_object_t& src);
+    
+    df_object_t& operator<<(df_null_t);
+
+
+    df_object_t& operator<<(const char*& src) = delete;
+
+
+
+
+    // == convert ==
+
+    template<typename T> operator T() const;
+
+
+
+    // == check state ==
+
+    inline bool is_locked() const ;
+
+    inline bool is_proxy() const;
+
+    inline bool is_variant() const;
+
+    inline bool is_null() const;
+    
+
+    inline df_type_t get_type() const;
+
+
+    // == print ==
+
+    inline std::string to_string() const;
+
+    friend inline std::ostream& operator<<(std::ostream& stream, const df_object_t& object);
 };
 
 
