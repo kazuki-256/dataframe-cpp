@@ -14,10 +14,8 @@ int main(int argc, char** argv) {
     // 列の更新（name列の3番目を "Charlie" に変更）
     df["name"][2] << "Charlie";
 
+    // no complete
     // フィルタリング：年齢が30以上の行だけ抽出（仮の filter 関数）
-    // auto filtered_df = df.filter([](const df_row_t& row) {
-    //     return std::stoi(row["age"]) >= 30;
-    // });
     // df_dataframe_t filtered = df.select("age").where("age >= 30");
 
     // 表示
