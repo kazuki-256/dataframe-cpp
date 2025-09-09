@@ -12,18 +12,29 @@
 
 
 
+/*
+three step to find target:
+1. from matched cashe, a pointer number to target map
+2. if step 1 couldn't find target, find target from object list, a struct to store running variables, also make matched cashe
+3. if step 1 and 2 couldn't finded, create object iter and matched cashe from real data (df_column_t)
 
+*/
 class df_row_t {
     friend class df_dataframe_t;
 protected:
-    struct row_info_t;
+    struct matched_info_t;
+    struct object_info_t;
 
-    row_info_t* info_start;
-    row_info_t* info_end;
+    std::vector<df_named_column_t>* unextended_columns;
 
-    long now;
-    long length;
+    matched_info_t* matched_start = NULL;   // base size: (COLUMN_LENGTH * 2 + 1), realloc every p >= match_end
+    matched_info_t* matched_end = NULL;     // at match_start + match_length
 
+    object_info_t* object_start = NULL;     // size: COLUMN_LENGTH
+    object_info_t* object_end = NULL;       // at info_start + length (dynamic), don't worry out of size since it is no possible to 
+
+    long current = 0;
+    df_date_t last_column_update = 0;       // if column update, remake column_info and match_info
 
     df_row_t(std::vector<df_named_column_t>& columns);
 
@@ -40,7 +51,13 @@ public:
 
     bool operator!=(const df_row_t& other);
 
-    bool is_end() const;
+    
+    
+    class iterator_t;
+
+    iterator_t begin();
+    
+    iterator_t end();
 };
 
 
@@ -64,6 +81,9 @@ public:
 
 class df_dataframe_t {
     std::vector<df_named_column_t> columns;
+    
+    // == statistics ==
+    df_date_t last_column_update;
 
     df_named_column_t* find_column(const char* name) const;
 
