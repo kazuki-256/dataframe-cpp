@@ -13,6 +13,18 @@
 
 inline void df_column_t::destroy() noexcept {
     df_debug3("destroy %s[%ld] column", df_type_get_string(data_type), length);
+
+    df_value_release_callback_t release = df_value_get_release_callback(data_type);
+    if (release) {
+        memory_iterator_t iter = begin();
+
+        if (data_type == DF_TYPE_TEXT) {
+        for (; iter != end(); iter++) {
+            release(iter.get_value());
+        }
+    }
+
+
     if (nulls != NULL) {
         free(nulls);
     }
