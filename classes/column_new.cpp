@@ -18,7 +18,6 @@ inline void df_column_t::destroy() noexcept {
     if (release) {
         memory_iterator_t iter = begin();
 
-        if (data_type == DF_TYPE_TEXT) {
         for (; iter != end(); iter++) {
             release(iter.get_value());
         }
