@@ -134,6 +134,10 @@ inline long df_column_t::get_length() const {
 
 
 
+df_object_t df_column_t::operator[](long index) {
+
+}
+
 
 
 
@@ -363,7 +367,7 @@ public:
     }
     
 
-    bool operator!=(const memory_iterator_t& other) {
+    bool operator!=(const memory_iterator_t& other) const {
         return null_ptr != other.null_ptr;
     }
 
