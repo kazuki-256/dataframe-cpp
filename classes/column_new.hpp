@@ -88,9 +88,9 @@ public:
 
 
 
-    df_object_t operator[](long index) const;
+    df_object_t operator[](long index);
 
-    const df_object_t operator[](long index);
+    const df_object_t operator[](long index) const;
 
 
 
