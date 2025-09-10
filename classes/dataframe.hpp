@@ -19,7 +19,7 @@ three step to find target:
 3. if step 1 and 2 couldn't finded, create object iter and matched cashe from real data (df_column_t)
 
 */
-class df_row_t {
+class df_const_row_t {
     friend class df_dataframe_t;
 protected:
     struct matched_info_t;
@@ -36,51 +36,66 @@ protected:
     long current = 0;
     long interval = 0;
 
-    df_date_t* check_update = NULL;
-    df_date_t last_update = (time_t)0;       // if column update, remake column_info and match_info
 
+    df_const_row_t(const std::vector<df_named_column_t>* columns, long index, long interval);
 
-
-    df_row_t(std::vector<df_named_column_t>* columns, df_date_t* check_update, long index, long interval);
-
-    constexpr df_row_t(long index);
+    constexpr df_const_row_t(long index);
 
 public:
-    ~df_row_t();
+    // == destroy ==
 
-    df_row_t& operator++();
+    ~df_const_row_t();
 
-    df_row_t& operator*();
+    // == get ==
 
-    df_object_t& operator[](const char* name);
+    int get_length() const;
 
-    bool operator!=(const df_row_t& other);
+
+
+    df_const_row_t& operator*();
+
+    const df_object_t& operator[](const char* name);
+
+    // == other ==
+
+    df_const_row_t& operator++();
+
+    bool operator!=(const df_const_row_t& other);
 
     
+    // == iterator ==
+    
+    class const_iterator_t;
     
     class iterator_t;
+
 
     iterator_t begin();
     
     iterator_t end();
 
+    const_iterator_t begin() const;
+    
+    const_iterator_t end() const;
 
+
+    // == write_stream ==
     
     std::ostream& write_stream(std::ostream& os) const;
 
-    friend std::ostream& operator<<(std::ostream& os, const df_dataframe_t& df);
+    friend std::ostream& operator<<(std::ostream& os, const df_const_row_t& row);
 };
 
 
-class df_const_row_t : public df_row_t {
+class df_row_t : public df_const_row_t {
     friend class df_dataframe_t;
 
 
-    df_const_row_t(const std::vector<df_named_column_t>* columns, const df_date_t* check_update, long index, long interval);
+    df_row_t(std::vector<df_named_column_t>* columns, long index, long interval);
 
-    constexpr df_const_row_t(long index);
+    constexpr df_row_t(long index);
 public:
-    const df_object_t& operator[](const char* name);
+    df_object_t& operator[](const char* name);
 };
 
 
@@ -121,6 +136,8 @@ public:
 
     df_dataframe_t(df_dataframe_t&& src) noexcept;
 
+    df_dataframe_t& operator=(df_dataframe_t&& src) noexcept;
+
 
 
     // == get ==
@@ -136,9 +153,9 @@ public:
     const df_column_t& operator[](const char* name) const;
 
 
-    df_row_t& loc(int index);
+    df_row_t loc(long index);
 
-    df_row_t& loc(int index) const;
+    const df_const_row_t loc(long index) const;
 
 
 
@@ -152,7 +169,7 @@ public:
 
 
 
-    df_dataframe_t& add_row(const df_row_t& row);
+    df_dataframe_t& add_row(const df_const_row_t& source& row);
 
     df_dataframe_t& add_row(const std::vector<df_object_t>& row);
 

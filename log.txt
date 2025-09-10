@@ -1,0 +1,44 @@
+# Logs
+
+- 2025-09-10:
+  - new column buffer structure (nulls and values having its memory differenly to old nulls + values in same buffer)
+  - remove df_column_t block vector design
+
+- 2025-09-06:
+  - rewrite README.md document
+  - new null handle
+
+- 2025-09-04:
+  - コード総行数3000突破
+  - df_column_t::range_datetime() 高速化
+  - df_column_t::begin() + index が可能にする
+  - バグ修正
+
+- 2025-09-02:
+  - df_column_t の継承クラス作成
+  - df_column_t::range_`<type>`() 追加
+
+- 2025-08-23:
+  - types/byte.hpp から types/mem.hpp に変更、void* を通して汎用処理をするシステムにした
+
+- 2025-08-20:
+  - テンプレート型構造を破棄
+  - コールバックテーブルを使用した types/byte.hpp データ処理コアを作成
+
+- 2025-08-17:
+  - fix `df_column<>` memory problem
+  - add `df_object<df_category>`
+  - add df_column and df_data_frame `std::cout` support
+
+- 2025-08-16:
+  - rewrite `df_object`, `df_object_chunk`, `df_column`
+  - change naming style from `PascalCase` to `snake_case`
+  - some memory fix
+  - update README.md
+
+- 2025-08-15:
+  - arrange files place
+  - start making DfDataFrame
+
+- 2025-08-14:
+  - update README.md

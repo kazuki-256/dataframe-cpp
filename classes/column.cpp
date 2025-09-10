@@ -14,28 +14,55 @@
 class df_column_t::memory_iterator_t {
     friend class df_column_t;
 protected:
-    uint8_t* value_ptr = NULL;
     bool* null_ptr = NULL;
+    uint8_t* value_ptr = NULL;
+
+    bool* null_original = NULL;
+    const df_column_t* source = NULL;
+
     int size_per_data = 0;
 
-    memory_iterator_t(uint8_t* value_ptr, bool* null_ptr, int size_per_data
-    ) : value_ptr(value_ptr), null_ptr(null_ptr), size_per_data(size_per_data) {}
+
+    memory_iterator_t(df_column_t* column) {
+        null_ptr = column->nulls;
+        value_ptr = column->values;
+
+        null_original = column->nulls;
+        source = column;
+        
+        size_per_data = size_per_data;
+    }
+
+    inline void handle_if_source_change() {
+        if (null_original != source->nulls) {
+            long index = null_ptr - null_original;
+
+            null_ptr = source->nulls + index * size_per_data;
+            value_ptr = source->values + index;
+            
+            null_original = source->nulls;
+        }
+    }
+
+    inline memory_iterator_t& add() {
+        handle_if_source_change();
+        value_ptr += size_per_data;
+        null_ptr++;
+        return *this;
+    }
     
 public:
     constexpr memory_iterator_t(bool* p) : null_ptr(p) {}
     
     memory_iterator_t& operator++() {
-        value_ptr += size_per_data;
-        null_ptr++;
-        return *this;
+        return add();
     }
-    memory_iterator_t& operator++(int index) {
-        value_ptr += size_per_data;
-        null_ptr++;
-        return *this;
+    memory_iterator_t& operator++(int) {
+        return add();
     }
 
     memory_iterator_t& operator+=(int index) {
+        handle_if_source_change();
         value_ptr += index * size_per_data;
         null_ptr += index;
         return *this;
@@ -59,8 +86,7 @@ public:
 class df_column_t::const_memory_iterator_t : public df_column_t::memory_iterator_t {
     friend class df_column_t;
     
-    const_memory_iterator_t(uint8_t* value_ptr, bool* null_ptr, int size_per_data
-    ) : memory_iterator_t(value_ptr, null_ptr, size_per_data) {}
+    const_memory_iterator_t(const df_column_t* column) : memory_iterator_t((df_column_t*)column) {}
 
 public:
     constexpr const_memory_iterator_t(bool* p) : memory_iterator_t(p) {}
@@ -81,15 +107,11 @@ protected:
     df_object_t proxy;
     df_value_load_callback_t loader = NULL;
 
-    object_iterator_t(
-        uint8_t* value_ptr, bool* null_ptr, int size_per_data,
-        df_type_t type, df_value_load_callback_t loader
-    ) : memory_iterator_t(value_ptr, null_ptr, size_per_data) {
-        
-        proxy.target_type = type;
+    object_iterator_t(df_column_t* column) : memory_iterator_t(column) {
+        proxy.target_type = column->data_type;
         proxy.lock_state = true;
         
-        this->loader = loader;
+        this->loader = column->type_loader;
     }
 public:
     constexpr object_iterator_t(bool* p) : memory_iterator_t(p) {}
@@ -104,10 +126,7 @@ public:
 class df_column_t::const_object_iterator_t : public df_column_t::object_iterator_t {
     friend class df_column_t;
 
-    const_object_iterator_t(
-        uint8_t* value_ptr, bool* null_ptr, int size_per_data,
-        df_type_t type, df_value_load_callback_t loader
-    ) : object_iterator_t(value_ptr, null_ptr, size_per_data, type, loader) {}
+    const_object_iterator_t(const df_column_t* column) : object_iterator_t((df_column_t*)column) {}
 
 public:
     constexpr const_object_iterator_t(bool* p) : object_iterator_t(p) {}
@@ -117,7 +136,7 @@ public:
 
 
 df_column_t::memory_iterator_t df_column_t::memory_begin() {
-    return memory_iterator_t{values, nulls, size_per_data};
+    return memory_iterator_t(this);
 }
 
 df_column_t::memory_iterator_t df_column_t::memory_end() {
@@ -127,7 +146,7 @@ df_column_t::memory_iterator_t df_column_t::memory_end() {
 
 
 df_column_t::const_memory_iterator_t df_column_t::memory_begin() const {
-    return const_memory_iterator_t{values, nulls, size_per_data};
+    return const_memory_iterator_t(this);
 }
 
 df_column_t::const_memory_iterator_t df_column_t::memory_end() const {
@@ -137,7 +156,7 @@ df_column_t::const_memory_iterator_t df_column_t::memory_end() const {
 
 
 df_column_t::object_iterator_t df_column_t::begin() {
-    return object_iterator_t{values, nulls, size_per_data, data_type, type_loader};
+    return object_iterator_t(this);
 }
 
 df_column_t::object_iterator_t df_column_t::end() {
@@ -147,7 +166,7 @@ df_column_t::object_iterator_t df_column_t::end() {
 
 
 df_column_t::const_object_iterator_t df_column_t::begin() const {
-    return const_object_iterator_t{values, nulls, size_per_data, data_type, type_loader};
+    return const_object_iterator_t(this);
 }
 
 df_column_t::const_object_iterator_t df_column_t::end() const {

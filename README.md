@@ -8,7 +8,6 @@
 | start date | 2025/08/14     |
 | state      | developmenting |
 
-
 ## init
 
 This data frame API is for data science in c++, target at readable, high performance and multi-functions.
@@ -16,7 +15,6 @@ This data frame API is for data science in c++, target at readable, high perform
 The API will store the data handles steps to df_process and execute data processs when df_process convert to iterator, df_column or df_data_frame. it would support sql commands, vector operation and data science method (min(), max(), median(), etc)
 
 Currently, this API stills in making the df_data_frame object, but the main.cpp shows over my excepted cleanly.
-
 
 ## Features
 
@@ -33,8 +31,6 @@ Currently, this API stills in making the df_data_frame object, but the main.cpp 
 2. xlsxio_write (to write .xlsx)
 3. OpenCV (if you want to use RandomForest, ploting)
 4. Sqlite3 (to read/write .db)
-
-
 
 ## Sample
 
@@ -88,16 +84,36 @@ int main(int argc, char** argv) {
 #include "dataframe_cpp/types/column.hpp"
 
 int main(int argc, char** argv) {
-    // I will rename it to df_range_<type>()
-    df_column_t date = df_column_t::range_date("2000-1-1", "2025-1-1", "1 years");
-    df_column_t index = df_column_t::range_int32(0, 25);
+	df_dataframe_t df = {
+		{"index", df_range_int32(1, 6)},	// INT32[5] of {1, 2, 3, 4, 5}
+		{"date", df_range_date("2000-1-1", "2025-1-1", "1 years")},	// DATE[5] of {2000-01-01 00:00, ...}
+		{"text", df_column_text_t{"kazuki", "dataframe", "c++", "minecraft", "hello world"}},	// typed-column, having faster construct
+		{"pi", {3b, 314, "3.14", 3.1415f, 3.1415}}	// default consturct able to use any type if able to convert, and typed by first object type
+	};
 
-    std::cout << column << "\n";
-    return 0;
+	// print dataframe
+	std::cout << " === Data Frame ===\n";
+	std::cout << df << "\n";
+
+	// set ["text"][4] as text, << will cast any type to dest type
+	df["text"][4] << "next";
+
+	// range each row
+	for (df_row_t& row : df.range_rows()) {		// df_row_t is a lazy row, it wouldn't iterate useless columns
+		std::cout << row["date"] << "   " << row["text"] << "\n";
+
+		std::cout << row << "\n";	// print row
+	}
+
+	// get row at 4
+	df.loc(4)["date"] << "2025-09-10 12:00";	// set ["date"][4] as 2025-09-10 12:00 (auto convert to its type: DATE);
+
+	// print dataframe again
+	std::cout << df << "\n";
+	return 0;
 }
 
 ```
-
 
 ---
 
@@ -144,8 +160,6 @@ std::cout << df << "\n";
 
 ```
 
-
-
 #### **df_dataframe_t**
 
 **init**
@@ -164,7 +178,6 @@ df_dataframe_t(const df_dataframe_t& dataframe);
 df_dataframe_t& operator=(const df_dataframe_t& dataframe);
 ```
 
-
 **move**
 
 ```cpp
@@ -172,7 +185,6 @@ df_dataframe_t(df_data_frame_t&& dataframe);
 
 df_dataframe_t& operator=(df_dataframe_t&& dataframe);
 ```
-
 
 **get**
 
@@ -187,7 +199,6 @@ df_column_t& operator[](const char* column_name);
 df_row_t loc(row_index);
 ```
 
-
 **iterate**
 
 ```cpp
@@ -196,7 +207,6 @@ for (df_named_column_t& named_column : dataframe) {
 }
 ```
 
-
 **print**
 
 ```cpp
@@ -204,8 +214,6 @@ std::ostream& write_ostream(std::ostream& output) const;
 
 static std::ostream& operator<<(std::ostream& output, const df_dataframe_t dataframe);
 ```
-
-
 
 #### **df_column_t**
 
@@ -217,7 +225,6 @@ df_column_t(const std::list<df_object_t> object, long start_capacity = 4096);
 df_column_t(df_type_t type, long start_capacity = 4096);
 ```
 
-
 **copy**
 
 ```cpp
@@ -226,7 +233,6 @@ df_column_t(const df_column_t& column);
 df_column_t& operator=(const df_column_t& column);
 ```
 
-
 **move**
 
 ```cpp
@@ -234,7 +240,6 @@ df_column_t(df_column_t&& colunn);
 
 df_column_t& operator=(df_column_t&& colunn);
 ```
-
 
 **get**
 
@@ -250,7 +255,6 @@ long length = your_column.get_length();
 df_object_t targeter = your_column[index];
 ```
 
-
 **iterate**
 
 ```cpp
@@ -258,7 +262,6 @@ for (df_object_t& object : column) {
   // your code
 }
 ```
-
 
 **print**
 
@@ -269,8 +272,6 @@ your_column.write_ostream(std::cout, "your_column_name");
 // method 2
 std::cout << your_column << "\n";
 ```
-
-
 
 #### **df_object_t**
 
@@ -286,9 +287,9 @@ template<typename T> df_object_t(const T value);
 - df_object_t operator=(move_object);
 - bool is_null() const;
 - bool is_locked() const;
-- template`<typename T>` operator T() const;
-- template`<typename T>` operator=(const_T_value);
-- template`<typename T>` operator<<(const_T_value);
+- template `<typename T>` operator T() const;
+- template `<typename T>` operator=(const_T_value);
+- template `<typename T>` operator<<(const_T_value);
 - ostream std::ostream operator<<(ostream, const_object);
 
 df_date_t:
@@ -343,45 +344,3 @@ methods in query_t:
 - df_query_t& order_by(column_name, 1 || -1);
 
 ---
-
-## **Logs**
-
-- 2025-09-06:
-
-  - rewrite README.md document
-  - new null handle
-- 2025-09-04:
-
-  - コード総行数3000突破
-  - df_column_t::range_datetime() 高速化
-  - df_column_t::begin() + index が可能にする
-  - バグ修正
-- 2025-09-02:
-
-  - df_column_t の継承クラス作成
-  - df_column_t::range_`<type>`() 追加
-- 2025-08-23:
-
-  - types/byte.hpp から types/mem.hpp に変更、void* を通して汎用処理をするシステムにした
-- 2025-08-20:
-
-  - テンプレート型構造を破棄
-  - コールバックテーブルを使用した types/byte.hpp データ処理コアを作成
-- 2025-08-17:
-
-  - fix `df_column<>` memory problem
-  - add `df_object<df_category>`
-  - add df_column and df_data_frame `std::cout` support
-- 2025-08-16:
-
-  - rewrite `df_object`, `df_object_chunk`, `df_column`
-  - change naming style from `PascalCase` to `snake_case`
-  - some memory fix
-  - update README.md
-- 2025-08-15:
-
-  - arrange files place
-  - start making DfDataFrame
-- 2025-08-14:
-
-  - update README.md
