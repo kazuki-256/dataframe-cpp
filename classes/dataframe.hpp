@@ -112,9 +112,9 @@ public:
 
     // == copy ==
 
-    df_dataframe_t(df_dataframe_t& src);
+    df_dataframe_t(const df_dataframe_t& src);
 
-    df_dataframe_t& operator=(df_dataframe_t& src);
+    df_dataframe_t& operator=(const df_dataframe_t& src);
 
 
     // == move ==

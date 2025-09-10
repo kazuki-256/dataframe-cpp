@@ -1,34 +1,26 @@
-#define DF_DEBUG_LEVEL 3
+#define DF_DEBUG_LEVEL 10
 #include "classes/dataframe.cpp"
+#include "vector.cpp"
 
 int main(int argc, char** argv) {
     // 初期化：2列のデータフレーム
     df_dataframe_t df = {
-        {"id", df_column_int32_t{1, 2, 3, 4, 5}},
-        {"name", df_column_text_t{"kazuki", "B", "C", "D", "E"}}
+        {"A", df_range_int32(0, 50000)},
+        {"B", df_range_int32(0, 50000)},
+        {"C", df_range_int32(0, 50000)},
+        {"D", df_range_int32(0, 50000)},
+        {"E", df_range_int32(0, 50000)},
     };
 
-    // 列の追加（新しい列 age）
-    df.add_column("age", df_column_int32_t{29, 35, 22, 41, 30});
-
-    // 列の更新（name列の3番目を "Charlie" に変更）
-    df["name"][2] << "Charlie";
-
-    // no complete
-    // フィルタリング：年齢が30以上の行だけ抽出（仮の filter 関数）
-    // df_dataframe_t filtered = df.select("age").where("age >= 30");
-
-    // 表示
-    std::cout << "=== Original DataFrame ===\n";
-    std::cout << df << "\n";
-
-    for (df_row_t&  row : df.range_rows(3, 1)) {
-        std::cout << row["name"] << " " << row["age"] << "\n";
+    timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    long total = 0;
+    for (df_row_t& row : df.range_rows(2000, 40000)) {
+        total = (long)row["B"] + (long)row["C"];
     }
-    std::cout << df << "\n";
+    clock_gettime(CLOCK_MONOTONIC, &end);
 
-    // std::cout << "=== Filtered (age >= 30) ===\n";
-    // std::cout << filtered_df << "\n";
-
+    std::cout << "total: " << total << "\n";
+    std::cout << "usetime: " << (end.tv_sec - start.tv_sec) * 1000000000 + end.tv_nsec - start.tv_nsec << " ns\n";
     return 0;
 }

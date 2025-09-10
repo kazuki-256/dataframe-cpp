@@ -7,7 +7,7 @@
 
 void df_object_t::destroy() {
     if (!is_proxy()) {
-        df_value_release(target_preload, target_type);
+        df_value_release(target_value, target_type);
     }
 }
 
@@ -18,11 +18,11 @@ df_object_t::~df_object_t() {
 
 
 
-// == init ==
+// == make ==
 
 void df_object_t::init_as_local() {
     target_null = (bool*)buffer;
-    target_data = buffer + sizeof(bool);
+    target_value = buffer + sizeof(bool);
 }
 
 
@@ -39,16 +39,15 @@ df_object_t::df_object_t(const T& const_value) {
     *target_null = false;
 
     if constexpr (DATA_TYPE == DF_TYPE_TEXT) {
-        new (target_data) std::string(const_value);
-        target_preload = df_value_load_struct(target_data);
+        new (target_value) std::string(const_value);
+        target_preload = df_value_load_struct(target_value);
     }
     else {
-        new (target_data) T(const_value);
-        target_preload = df_value_get_load_callback(DATA_TYPE)(target_data);
+        target_preload = df_value_get_write_callback(DATA_TYPE, DATA_TYPE)(const_value, target_value);
     }
 }
 
-//
+
 df_object_t::df_object_t(const char* const_string) {
     df_debug2("create %s object at %p", df_type_get_string(DF_TYPE_TEXT), this);
 
@@ -56,9 +55,10 @@ df_object_t::df_object_t(const char* const_string) {
     target_type = DF_TYPE_TEXT;
     *target_null = false;
 
-    new (target_data) std::string(const_string);
-    target_preload = df_value_load_struct(target_data);
+    new (target_value) std::string(const_string);
+    target_preload = df_value_load_struct(target_value);
 }
+
 
 df_object_t::df_object_t(std::string&& const_string) {
     df_debug2("create %s object at %p", df_type_get_string(DF_TYPE_TEXT), this);
@@ -67,10 +67,9 @@ df_object_t::df_object_t(std::string&& const_string) {
     target_type = DF_TYPE_TEXT;
     *target_null = false;
 
-    new (target_data) std::string(std::move(const_string));
-    target_preload = df_value_load_struct(target_data);
+    new (target_value) std::string(std::move(const_string));
+    target_preload = df_value_load_struct(target_value);
 }
-
 
 
 df_object_t::df_object_t(df_null_t) {
@@ -91,7 +90,7 @@ void df_object_t::copy(const df_object_t& other) noexcept {
     target_type = other.target_type;
     *target_null = *other.target_null;
 
-    target_preload = df_value_write(other.target_preload, other.target_type, this->target_data, other.target_type);
+    target_preload = df_value_write(other.target_preload, other.target_type, this->target_value, other.target_type);
 
     category_titles = other.category_titles;
 }
@@ -115,7 +114,7 @@ df_object_t& df_object_t::operator=(const df_object_t& other) {
         init_as_local();
     }
     else {
-        df_value_release_mem(target_data, target_type);
+        df_value_release(target_value, target_type);
     }
 
     copy(other);
@@ -136,7 +135,7 @@ void df_object_t::move(df_object_t& other) noexcept {
         other.target_null = NULL;   // take local buffer control
     }
     else {
-        target_data = (uint8_t*)other.target_null;
+        target_value = (uint8_t*)other.target_value;
         target_null = other.target_null;
     }
 
@@ -169,10 +168,10 @@ df_object_t& df_object_t::operator=(df_object_t&& other) {
 
 // == set ==
 
-void df_object_t::set_target(bool* target_null, uint8_t* target_data, df_value_load_callback_t loader) {
+void df_object_t::set_target(bool* target_null, uint8_t* target_value, df_value_load_callback_t loader) {
     this->target_null = target_null;
-    this->target_data = target_data;
-    this->target_preload = loader(target_data);
+    this->target_value = target_value;
+    this->target_preload = loader(target_value);
 }
 
 
@@ -193,7 +192,7 @@ inline void df_object_t::basic_set(df_type_t dest_type) {
         init_as_local();
     }
     else {
-        df_value_release_mem(target_data, target_type);
+        df_value_release(target_value, target_type);
     }
 
     target_type = dest_type;
@@ -206,8 +205,8 @@ df_object_t& df_object_t::operator=(const T src) {
     basic_set(DATA_TYPE);
     *target_null = false;
 
-    new (target_data) T(src);
-    target_preload = df_value_get_load_callback(DATA_TYPE)(target_data);
+    new (target_value) T(src);
+    target_preload = df_value_get_load_callback(DATA_TYPE)(target_value);
     return *this;
 }
 
@@ -216,8 +215,8 @@ df_object_t& df_object_t::operator=(const char* src) {
     basic_set(DF_TYPE_TEXT);
     *target_null = false;
 
-    new (target_data) std::string(src);
-    target_preload = df_value_get_load_callback(DF_TYPE_TEXT)(target_data);
+    new (target_value) std::string(src);
+    target_preload = df_value_get_load_callback(DF_TYPE_TEXT)(target_value);
     return *this;
 }
 
@@ -237,7 +236,7 @@ df_object_t& df_object_t::operator<<(const T src) {
     df_debug2("cast %s to %s object", df_type_get_string(DATA_TYPE), df_type_get_string(target_type));
 
     df_value_t value = df_value_get_load_callback(DATA_TYPE)(&src);
-    target_preload = df_value_write(value, DATA_TYPE, target_data, target_type);
+    target_preload = df_value_write(value, DATA_TYPE, target_value, target_type);
     *target_null = false;
 
     return *this;
@@ -250,7 +249,7 @@ df_object_t& df_object_t::operator<<(const char* src) {
     std::string s = src;
     df_value_t value = &s;
 
-    target_preload = df_value_write(value, DF_TYPE_TEXT, target_data, target_type);
+    target_preload = df_value_write(value, DF_TYPE_TEXT, target_value, target_type);
     *target_null = false;
     return *this;
 }
@@ -259,7 +258,7 @@ df_object_t& df_object_t::operator<<(const char* src) {
 df_object_t& df_object_t::operator<<(const df_object_t& src) {
     df_debug2("cast NULL to %s object", df_type_get_string(target_type));
 
-    target_preload = df_value_write(src.target_preload, src.target_type, target_data, target_type);
+    target_preload = df_value_write(src.target_preload, src.target_type, target_value, target_type);
     *target_null = src.is_null();
     return *this;
 }

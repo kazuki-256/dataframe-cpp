@@ -41,7 +41,7 @@ typedef union df_value_t {
 
 // ==== df_value_t release function ====
 
-typedet void (*df_value_release_callback_t)(void* mem);
+typedef void (*df_value_release_callback_t)(void* mem);
 
  
 void df_value_release_string(void* mem) {
@@ -51,7 +51,7 @@ void df_value_release_string(void* mem) {
 
 df_value_release_callback_t df_value_get_release_callback(df_type_t type) {
     if (type == DF_TYPE_TEXT) {
-         return df_value_release_string_mem(mem);
+        return df_value_release_string;
     }
 return NULL;
 }
@@ -59,7 +59,7 @@ return NULL;
 
 // just release, not free the pointer
 void df_value_release(void* mem, df_type_t type) {
-    df_value_release_callback_t release = df_value_get_release_callback(mem);
+    df_value_release_callback_t release = df_value_get_release_callback(type);
 
     if (release) {
         release(mem);

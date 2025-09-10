@@ -20,16 +20,15 @@ df_column_t df_range_int32(int start, int end, int interval = 1) {
         throw df_exception_endless_range();
     }
 
-    df_column_t column(DF_TYPE_INT32, length);
-    df_mem_block_t* block = column.blocks.tlBack();
-    uint8_t* p = block->get_data_start();
+    df_column_t column;
+    column.basic_init(DF_TYPE_INT32, length, length);
 
-    for (; start != end; start += interval, p += DF_TYPESIZE_INT32) {
-        df_value_write_long_long(start, p);
+    df_column_t::memory_iterator_t iter = column.memory_begin();
+
+    for (; start != end; start += interval, iter++) {
+        *iter.get_null() = false;
+        df_value_write_long_long(start, iter.get_value());
     }
-    memset(block->get_null_start(), false, length);
-
-    column.length = block->usage = length;
     return column;
 }
 
@@ -47,16 +46,15 @@ df_column_t df_range_int64(long start, long end, long interval = 1) {
         throw df_exception_endless_range();
     }
 
-    df_column_t column(DF_TYPE_INT64, length);
-    df_mem_block_t* block = column.blocks.tlBack();
-    uint8_t* p = block->get_data_start();
+    df_column_t column;
+    column.basic_init(DF_TYPE_INT64, length, length);
 
-    for (; start != end; start += interval, p += DF_TYPESIZE_INT64) {
-        df_value_write_long_long(start, p);
+    df_column_t::memory_iterator_t iter = column.memory_begin();
+
+    for (; start != end; start += interval, iter++) {
+        *iter.get_null() = false;
+        df_value_write_long_long(start, iter.get_value());
     }
-    memset(block->get_null_start(), false, length);
-
-    column.length = block->usage = length;
     return column;
 }
 
@@ -75,37 +73,39 @@ df_column_t df_range_datetime(df_date_t start, df_date_t end, df_interval_t inte
         throw df_exception_endless_range();
     }
 
-    df_column_t column(DF_TYPE_DATETIME, DF_MAX(predicted_length, DF_DEFAULT_COLUMN_SMALL_START_CAPACITY));
-    df_mem_block_t* block = column.blocks.tlBack();
-    uint8_t* p = block->get_data_start();
+    df_column_t column;
+    column.basic_init(DF_TYPE_DATETIME, 0, predicted_length);
+
+    df_column_t::memory_iterator_t iter = column.memory_begin();
 
     // == way1: const interval calculation ==
     if (interval.is_constant()) {
-        for (; start < end; start += const_interval) {
-            df_value_write_long_long(start, p);
-            p += DF_TYPESIZE_DATETIME;
+        column.length = predicted_length;
+        
+        for (; start < end; start += const_interval, iter++) {
+            *iter.get_null() = false;
+            df_value_write_long_long(start, iter.get_value());
         }
-        memset(block->get_null_start(), false, predicted_length);
-
-        block->usage = column.length = predicted_length;
         return column;
     }
 
     // == way2: variable interval calculation ==
 
     for (; start < end; start += interval) {
-        if (block->usage >= block->capacity) {
-            memset(block->get_null_start(), false, block->usage);
-            column.length += block->usage;
-
-            block = column.blocks.tlAdd(df_mem_block_t::create(DF_TYPE_DATETIME, column.length * 2));
-            p = block->get_data_start();
+        int ret = column.reserve(1);
+        if (ret != 0) {
+            if (ret > 0) {
+                iter = column.memory_begin() += column.length;
+            }
+            else {
+                throw df_exception_not_enough_memory();
+            }
         }
-
-        df_value_write_long_long(start, p + (block->usage++) * DF_TYPESIZE_DATETIME);
+        
+        *iter.get_null() = false;
+        df_value_write_long_long(start, iter.get_value());
+        column.length++;
     }
-    memset(block->get_null_start(), false, block->usage);
-    column.length += block->usage;
     return column;
 }
 
