@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
 **currently**
 
 ```cpp
-#include "dataframe_cpp/types/column.hpp"
+#include "dataframe_cpp/classes/dataframe.cpp"
 
 int main(int argc, char** argv) {
 	df_dataframe_t df = {
