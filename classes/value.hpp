@@ -41,22 +41,28 @@ typedef union df_value_t {
 
 // ==== df_value_t release function ====
 
-// just release, not free the pointer
-void df_value_release(df_value_t value, df_type_t type) {
-    if (type == DF_TYPE_TEXT) {
-        value.as_string->~basic_string();
-    }
-}
+typedet void (*df_value_release_callback_t)(void* mem);
 
  
-void df_value_release_string_mem(void* mem) {
+void df_value_release_string(void* mem) {
     ((std::string*)mem)->~basic_string();
 }
 
-// just release, not free the pointer
-void df_value_release_mem(void* mem, df_type_t type) {
+
+df_value_release_callback_t df_value_get_release_callback(df_type_t type) {
     if (type == DF_TYPE_TEXT) {
-        df_value_release_string_mem(mem);
+         return df_value_release_string_mem(mem);
+    }
+return NULL;
+}
+
+
+// just release, not free the pointer
+void df_value_release(void* mem, df_type_t type) {
+    df_value_release_callback_t release = df_value_get_release_callback(mem);
+
+    if (release) {
+        release(mem);
     }
 }
 
