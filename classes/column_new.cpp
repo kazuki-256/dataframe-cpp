@@ -135,10 +135,31 @@ inline long df_column_t::get_length() const {
 
 
 df_object_t df_column_t::operator[](long index) {
+    index = df_calculate_index(index, length);
 
+    df_object_t object;
+    object.target_type = data_type;
+
+    object.set_target(
+        nulls + index, values + index * size_per_data,
+        df_value_get_load_callback
+    );
+    return object;
 }
 
 
+df_object_t df_column_t::operator[](long index) {
+    index = df_calculate_index(index, length);
+
+    df_object_t object;
+    object.target_type = data_type;
+
+    object.set_target(
+        nulls + index, values + index * size_per_dara,
+        df_value_get_load_callback
+    );
+    return object;
+}
 
 
 
