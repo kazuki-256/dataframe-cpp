@@ -202,51 +202,68 @@ std::ostream& operator<<(std::ostream& os, const df_named_column_t& named_column
 
 
 
+class df_column_uint8_t : public df_column_t {
+public:
+    df_column_uint8_t(const std::initializer_list<uint8_t>& sources);
+}
+
+
+class df_column_int16_t : public df_column_t {
+public:
+    df_column_int16_t(const std::initializer_list<short>& sources);
+}
+
 
 class df_column_int32_t : public df_column_t {
 public:
-  df_column_int32_t(const std::initializer_list<int>& sources);
+    df_column_int32_t(const std::initializer_list<int>& sources);
 };
+
 
 class df_column_int64_t : public df_column_t {
 public:
-  df_column_int64_t(const std::initializer_list<long>& sources);
+    df_column_int64_t(const std::initializer_list<long>& sources);
 };
+
 
 
 
 class df_column_float32_t : public df_column_t {
 public:
-  df_column_float32_t(const std::initializer_list<float>& sources);
+    df_column_float32_t(const std::initializer_list<float>& sources);
 };
 
 class df_column_float64_t : public df_column_t {
 public:
-  df_column_float64_t(const std::initializer_list<double>& sources);
+    df_column_float64_t(const std::initializer_list<double>& sources);
 };
+
 
 
 
 class df_column_text_t : public df_column_t {
 public:
-  df_column_text_t(const std::initializer_list<const char*>& sources);
+    df_column_text_t(const std::initializer_list<const char*>& sources);
 
-  df_column_text_t(const std::initializer_list<std::string>& sources);
+    df_column_text_t(const std::initializer_list<std::string>& sources);
 };
+
 
 
 
 class df_column_date_t : public df_column_t {
 public:
-  df_column_date_t(const std::initializer_list<df_date_t>& sources);
+    df_column_date_t(const std::initializer_list<df_date_t>& sources);
 };
+
 
 class df_column_time_t : public df_column_t {
 public:
-  df_column_time_t(const std::initializer_list<const char*>& sources);
+    df_column_time_t(const std::initializer_list<const char*>& sources);
 };
+
 
 class df_column_datetime_t : public df_column_t {
 public:
-  df_column_datetime_t(const std::initializer_list<df_date_t>& sources);
+    df_column_datetime_t(const std::initializer_list<df_date_t>& sources);
 };
