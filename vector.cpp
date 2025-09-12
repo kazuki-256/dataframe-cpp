@@ -23,7 +23,7 @@ df_column_t df_range_int32(int start, int end, int interval = 1) {
     df_column_t column;
     column.basic_init(DF_TYPE_INT32, length, length);
 
-    df_column_t::memory_iterator_t iter = column.memory_begin();
+    df_memory_iterator_t iter = column.memory_begin();
 
     for (; start != end; start += interval, iter++) {
         *iter.get_null() = false;
@@ -49,7 +49,7 @@ df_column_t df_range_int64(long start, long end, long interval = 1) {
     df_column_t column;
     column.basic_init(DF_TYPE_INT64, length, length);
 
-    df_column_t::memory_iterator_t iter = column.memory_begin();
+    df_memory_iterator_t iter = column.memory_begin();
 
     for (; start != end; start += interval, iter++) {
         *iter.get_null() = false;
@@ -76,7 +76,7 @@ df_column_t df_range_datetime(df_date_t start, df_date_t end, df_interval_t inte
     df_column_t column;
     column.basic_init(DF_TYPE_DATETIME, 0, predicted_length);
 
-    df_column_t::memory_iterator_t iter = column.memory_begin();
+    df_memory_iterator_t iter = column.memory_begin();
 
     // == way1: const interval calculation ==
     if (interval.is_constant()) {
@@ -91,7 +91,7 @@ df_column_t df_range_datetime(df_date_t start, df_date_t end, df_interval_t inte
 
     // == way2: variable interval calculation ==
 
-    for (; start < end; start += interval) {
+    for (; start < end; iter++, start += interval) {
         int ret = column.reserve(1);
         if (ret != 0) {
             if (ret > 0) {
@@ -106,6 +106,7 @@ df_column_t df_range_datetime(df_date_t start, df_date_t end, df_interval_t inte
         df_value_write_long_long(start, iter.get_value());
         column.length++;
     }
+        std::cout << column << "\n";
     return column;
 }
 

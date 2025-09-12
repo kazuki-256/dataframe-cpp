@@ -2,6 +2,7 @@
 
 #include "../config.hpp"
 #include "object.hpp"
+#include "range_objects.hpp"
 
 #include <list>
 #include <set>
@@ -11,11 +12,16 @@ class df_column_t {
     friend class df_dataframe_t;
     friend class std::pair<std::string, df_column_t>;
 
+    friend class df_memory_iterator_t;
+    friend class df_const_memory_iterator_t;
+    friend class df_object_iterator_t;
+    friend class df_const_object_iterator_t;
+
     friend class df_row_t;
     friend class df_const_row_t;
 
-    friend class df_range_rows_t;
-    friend class df_const_range_rows_t;
+    friend class df_row_range_t;
+    friend class df_const_row_range_t;
 protected:
     df_type_t data_type = DF_TYPE_UINT8;
     int size_per_data = 1;
@@ -27,6 +33,16 @@ protected:
 
     long length = 0;
     long capacity = 0;
+
+
+    std::string meta;
+    
+    short reading_count = 0;
+    short writing_count = 0;
+
+    bool can_read = true;
+    bool can_write = true;
+
 
 
     // == private make ==
@@ -62,29 +78,27 @@ protected:
 public:
     // == iterator ==
 
-    class memory_iterator_t;
-    class const_memory_iterator_t;
+    df_memory_iterator_t memory_begin();
 
-    class object_iterator_t;
-    class const_object_iterator_t;
+    df_memory_iterator_t memory_end();
 
+    df_const_memory_iterator_t memory_begin() const;
 
-    memory_iterator_t memory_begin();
-
-    memory_iterator_t memory_end();
-
-    const_memory_iterator_t memory_begin() const;
-
-    const_memory_iterator_t memory_end() const;
+    df_const_memory_iterator_t memory_end() const;
 
 
-    object_iterator_t begin();
+    df_object_iterator_t begin();
 
-    object_iterator_t end();
+    df_object_iterator_t end();
 
-    const_object_iterator_t begin() const;
+    df_const_object_iterator_t begin() const;
 
-    const_object_iterator_t end() const;
+    df_const_object_iterator_t end() const;
+
+
+
+    df_range_objects_t operator()(long start, long end, long interval);
+    df_range_objects_t operator()(long start, long end, long interval) const;
 
 
 
@@ -101,6 +115,8 @@ public:
     df_column_t(df_type_t data_type, long start_capacity);
 
     df_column_t(const std::initializer_list<df_object_t>& objects);
+
+    df_column_t(const df_range_objects_t& range);
 
 
 
@@ -196,26 +212,30 @@ public:
     friend df_column_t df_range_datetime(df_date_t, df_date_t, df_interval_t);
 
     
+
     df_query_t operator+(const df_query_t& query) const;
     df_query_t operator+(long num) const;
     df_query_t operator+(double num) const;
 
-    df_query_t operator+(const df_query_t& query) const;
+    df_query_t operator-(const df_query_t& query) const;
     df_query_t operator-(long num) const;
     df_query_t operator-(double num) const;
 
-    df_query_t operator+(const df_query_t& query) const;
+    df_query_t operator*(const df_query_t& query) const;
     df_query_t operator*(long num) const;
     df_query_t operator*(double num) const;
 
-    df_query_t operator+(const df_query_t& query) const;
+    df_query_t operator/(const df_query_t& query) const;
     df_query_t operator/(long num) const;
     df_query_t operator/(double num) const;
 
-    df_query_t operator+(const df_query_t& query) const;
+    df_query_t operator%(const df_query_t& query) const;
     df_query_t operator%(long num) const;
     df_query_t operator%(double num) const;
 };
+
+
+
 
 
 

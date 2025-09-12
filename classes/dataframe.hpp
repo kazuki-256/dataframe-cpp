@@ -2,7 +2,7 @@
 
 #include "../config.hpp"
 #include "column.hpp"
-#include "range_rows.hpp"
+#include "row_range.hpp"
 
 
 
@@ -10,8 +10,8 @@
 
 
 class df_dataframe_t {
-    friend class df_range_rows_t;
-    friend class df_const_range_rows_t;
+    friend class df_row_range_t;
+    friend class df_const_row_range_t;
 
 
     std::vector<df_named_column_t> columns;
@@ -20,8 +20,6 @@ class df_dataframe_t {
     df_date_t last_column_update;
 
     df_named_column_t* find_column(const char* name) const;
-
-    inline void basic_range_rows(long& start, long& end, long& interval) const;
 
 
 public:
@@ -32,7 +30,7 @@ public:
 
     df_dataframe_t(const std::initializer_list<df_named_column_t>& source_columns);
 
-    df_dataframe_t(std::initializer_list<df_named_column_t>&& source_columns);
+    // df_dataframe_t(std::initializer_list<df_named_column_t>&& source_columns);
 
 
     // == copy ==
@@ -63,9 +61,9 @@ public:
     const df_column_t& operator[](const char* name) const;
 
 
-    df_row_t loc(long index);
+    df_row_t row(long index);
 
-    df_const_row_t loc(long index) const;
+    df_const_row_t row(long index) const;
 
 
 
@@ -99,9 +97,9 @@ public:
 
 
 
-    df_const_range_rows_t range_rows(long start, long end, long interval) const;
+    df_row_range_t rows(long start, long end, long interval);
 
-    df_range_rows_t range_rows(long start, long end, long interval);
+    df_const_row_range_t rows(long start, long end, long interval) const;
 
 
 
@@ -132,19 +130,19 @@ public:
     df_query_t operator+(long num) const;
     df_query_t operator+(double num) const;
 
-    df_query_t operator+(const df_query_t& query) const;
+    df_query_t operator-(const df_query_t& query) const;
     df_query_t operator-(long num) const;
     df_query_t operator-(double num) const;
 
-    df_query_t operator+(const df_query_t& query) const;
+    df_query_t operator*(const df_query_t& query) const;
     df_query_t operator*(long num) const;
     df_query_t operator*(double num) const;
 
-    df_query_t operator+(const df_query_t& query) const;
+    df_query_t operator/(const df_query_t& query) const;
     df_query_t operator/(long num) const;
     df_query_t operator/(double num) const;
 
-    df_query_t operator+(const df_query_t& query) const;
+    df_query_t operator%(const df_query_t& query) const;
     df_query_t operator%(long num) const;
     df_query_t operator%(double num) const;
 

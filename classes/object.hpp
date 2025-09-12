@@ -28,10 +28,12 @@ constexpr df_null_t DF_NULL;
 
 
 class df_object_t {
-    friend class df_const_row_t;
     friend class df_object_iterator_t;
     friend class df_const_object_iterator_t;
+    
     friend class df_column_t;
+
+    friend class df_row_t;
 
     std::vector<std::string>* category_titles = NULL;
 
@@ -42,14 +44,12 @@ class df_object_t {
 
     bool        lock_state  = false;
 
-    uint8_t buffer[DF_MAX_TYPE_SIZE] = {};
+    uint8_t buffer[DF_MAX_TYPE_SIZE] = {0};
 
 
 
     void destroy();
 
-
-    constexpr df_object_t();
 
     void init_as_local();   // basic init of free object
 
@@ -74,6 +74,9 @@ public:
 
 
     // == init ==
+
+    constexpr df_object_t();
+
 
     template<typename T> df_object_t(const T& const_value);
 
@@ -119,16 +122,18 @@ public:
 
 
 
-    template<typename T> df_object_t& operator<<(const T src);
 
     df_object_t& operator<<(const char* src);
 
     df_object_t& operator<<(const df_object_t& src);
     
     df_object_t& operator<<(df_null_t);
+    
+
+    template<typename T> df_object_t& operator<<(const T src);
 
 
-    df_object_t& operator<<(const char*& src) = delete;
+    df_object_t& operator<<(const char*&) = delete;
 
 
 
@@ -159,9 +164,5 @@ public:
 
     friend inline std::ostream& operator<<(std::ostream& stream, const df_object_t& object);
 };
-
-
-
-
 
 

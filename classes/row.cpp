@@ -6,7 +6,7 @@
 
 // == destroy ==
 
-df_const_row_t::~df_const_row_t() {
+df_row_t::~df_row_t() {
     if (matched_start) {
         free(matched_start);
     }
@@ -18,10 +18,10 @@ df_const_row_t::~df_const_row_t() {
 
 // == make ==
 
-df_const_row_t::df_const_row_t(const std::vector<df_named_column_t>* columns, long index, long interval) {
+df_row_t::df_row_t(std::vector<df_named_column_t>* columns, long index, long interval) {
     const int COLUMN_LENGTH = columns->size();
 
-    source = (std::vector<df_named_column_t>*)columns;
+    source = columns;
 
     matched_start = (matched_info_t*)calloc(COLUMN_LENGTH, sizeof(matched_info_t));
     matched_end = matched_start + COLUMN_LENGTH;
@@ -34,22 +34,22 @@ df_const_row_t::df_const_row_t(const std::vector<df_named_column_t>* columns, lo
 }
 
 
-constexpr df_const_row_t::df_const_row_t(long index) : current(index) {}
+constexpr df_row_t::df_row_t(long index) : current(index) {}
 
 
 // == get ==
 
-int df_const_row_t::get_length() const {
+int df_row_t::get_length() const {
     return source->size();
 }
 
-df_const_row_t& df_const_row_t::operator*() {
+df_row_t& df_row_t::operator*() {
     return *this;
 }
 
 
 
-inline const df_object_t& df_const_row_t::basic_at(const char* name, df_const_row_t::object_info_t*& info) {
+inline df_object_t& df_row_t::basic_at(const char* name, df_row_t::object_info_t*& info) {
     // == from object_info list ==
 
     // == from created object list ==
@@ -61,7 +61,7 @@ inline const df_object_t& df_const_row_t::basic_at(const char* name, df_const_ro
 
     // == match from source ==
     
-    for (const df_named_column_t& column : *source) {
+    for (df_named_column_t& column : *source) {
         // filter not matching
         if (column.first.compare(name) != 0) {
             continue;
@@ -90,13 +90,13 @@ label_get_data:
 
 
 // operator[]() without pointer compare
-const df_object_t& df_const_row_t::at(const char* name) {
+df_object_t& df_row_t::at(const char* name) {
     object_info_t* info;
     return basic_at(name, info);
 }
 
 
-const df_object_t& df_const_row_t::operator[](const char* name) {
+df_object_t& df_row_t::operator[](const char* name) {
     // == from matched cashe ==
 
     matched_info_t* match_info;
@@ -116,7 +116,7 @@ const df_object_t& df_const_row_t::operator[](const char* name) {
     }
 
     // == from object_info or source ==
-    const df_object_t& result = basic_at(name, object_info);
+    df_object_t& result = basic_at(name, object_info);
 
     if (match_info >= matched_end) {
         int capacity = matched_end - matched_start;
@@ -139,21 +139,21 @@ const df_object_t& df_const_row_t::operator[](const char* name) {
 
 // == other ==
 
-df_const_row_t& df_const_row_t::operator++() {
+df_row_t& df_row_t::operator++() {
     current += interval;
     return *this;
 }
 
 
-bool df_const_row_t::operator!=(const df_const_row_t& other) {
+bool df_row_t::operator!=(const df_row_t& other) {
     return current != other.current;
 }
 
 
 // == iterator ==
 
-class df_const_row_t::iterator_t {
-    friend class df_const_row_t;
+class df_row_t::iterator_t {
+    friend class df_row_t;
 protected:
     object_info_t* info;
     long current;
@@ -192,7 +192,7 @@ public:
 };
 
 
-df_const_row_t::iterator_t df_const_row_t::begin() {
+df_row_t::iterator_t df_row_t::begin() {
     // == fill object_info_t ==
     if (object_start + source->size() != object_end) {
         object_info_t* ptr = object_start;
@@ -213,7 +213,7 @@ df_const_row_t::iterator_t df_const_row_t::begin() {
     return iterator_t(object_start, current);
 }
 
-df_const_row_t::iterator_t df_const_row_t::end() {
+df_row_t::iterator_t df_row_t::end() {
     return iterator_t(object_end, 0);
 }
     
@@ -221,7 +221,7 @@ df_const_row_t::iterator_t df_const_row_t::end() {
 
 // == write ==
 
-std::ostream& df_const_row_t::write_stream(std::ostream& os) {
+std::ostream& df_row_t::write_stream(std::ostream& os) {
     df_debug7("");
     iterator_t iter = begin();
 
@@ -241,9 +241,9 @@ std::ostream& df_const_row_t::write_stream(std::ostream& os) {
 }
 
 
-std::ostream& operator<<(std::ostream& os, const df_const_row_t& row) {
+std::ostream& operator<<(std::ostream& os, const df_row_t& row) {
     df_debug7("");
-    return ((df_const_row_t&)row).write_stream(os);
+    return ((df_row_t&)row).write_stream(os);
 }
 
 
@@ -251,28 +251,29 @@ std::ostream& operator<<(std::ostream& os, const df_const_row_t& row) {
 
 
 
-// ==== df_row_t ====
+// ==== df_const_row_t ====
 
 // == make ==
 
-df_row_t::df_row_t(
-    std::vector<df_named_column_t>* columns, long index, long interval
-) : df_const_row_t((const std::vector<df_named_column_t>*)columns, index, interval) {}
+df_const_row_t::df_const_row_t(
+    const std::vector<df_named_column_t>* columns,
+    long index, long interval
+) : df_row_t((std::vector<df_named_column_t>*)columns, index, interval) {}
 
 
-constexpr df_row_t::df_row_t(long index) : df_const_row_t(index) {}
+constexpr df_const_row_t::df_const_row_t(long index) : df_row_t(index) {}
 
 
 // == other ==
 
-df_object_t& df_row_t::operator[](const char* name) {
-    return (df_object_t&)df_const_row_t::operator[](name);
+const df_object_t& df_const_row_t::operator[](const char* name) {
+    return df_row_t::operator[](name);
 }
 
 
 
-std::ostream& operator<<(std::ostream& os, const df_row_t& row) {
-    return ((df_const_row_t&)row).write_stream(os);
+std::ostream& operator<<(std::ostream& os, const df_const_row_t& row) {
+    return ((df_row_t&)row).write_stream(os);
 }
 
 

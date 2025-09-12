@@ -19,32 +19,51 @@ const char DF_VERSION[] = "beta 1.0.0";
 
 
 
-// == types ==
+// ==== types ====
 
-class df_mem_iterator_t;
-class df_const_mem_iterator_t;
-
-class df_object_iterator_t;
-class df_const_object_iterator_t;
-
-
-
-typedef union df_value_t df_value_t;
-
-class df_exception_t;
-
-class df_date_t;
-class df_null_t;
+// == main classes ==
 
 class df_object_t;
+
 class df_row_t;
+class df_const_row_t;
 
 class df_column_t;
-typedef std::pair<std::string, df_column_t> df_named_column_t;
+using df_named_column_t = std::pair<std::string, df_column_t>;
 
 class df_dataframe_t;
 
 class df_query_t;
+
+
+// == exception ==
+
+class df_exception_t;
+
+
+// == value ==
+
+using df_value_t = union df_value_t;
+
+class df_date_t;
+class df_interval_t;
+
+
+// == range ==
+
+class df_object_range_t;
+class df_row_range_t;
+class df_column_range_t;
+
+
+// == iterator ==
+
+class df_memory_iterator_t;
+class df_const_memory_iterator_t;
+
+class df_object_iterator_t;
+class df_const_object_iterator_t;
+
 
 
 

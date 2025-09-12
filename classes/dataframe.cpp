@@ -3,7 +3,7 @@
 #include "dataframe.hpp"
 #include "column.cpp"
 #include "row.cpp"
-#include "range_rows.cpp"
+#include "row_range.cpp"
 
 
 
@@ -33,32 +33,12 @@ std::vector<df_named_column_t>::const_iterator df_dataframe_t::end() const {
 
 
 
-inline void df_dataframe_t::basic_range_rows(long& start, long& end, long& interval) const {
-    if (interval == 0) {
-        throw df_exception_interval_couldnot_be_0();
-    }
-
-    const long LENGTH = get_row_count();
-
-    start = df_calculate_index(start, LENGTH);
-    end = df_calculate_index(end, LENGTH);
-
-    long range = end - start;
-    if (range * interval < 0) {
-        throw df_exception_endless_range();
-    }
-    end = end - range % interval;
+df_row_range_t df_dataframe_t::rows(long start = 0, long end = -1, long interval = 1) {
+    return df_row_range_t(this, start, end, interval);
 }
 
-
-df_const_range_rows_t df_dataframe_t::range_rows(long start = 0, long end = -1, long interval = 1) const {
-    basic_range_rows(start, end, interval);
-    return df_const_range_rows_t(this, start, end, interval);
-}
-
-df_range_rows_t df_dataframe_t::range_rows(long start = 0, long end = -1, long interval = 1) {
-    basic_range_rows(start, end, interval);
-    return df_range_rows_t(this, start, end, interval);
+df_const_row_range_t df_dataframe_t::rows(long start = 0, long end = -1, long interval = 1) const {
+    return df_const_row_range_t(this, start, end, interval);
 }
 
 
@@ -90,7 +70,7 @@ df_dataframe_t::df_dataframe_t(const std::initializer_list<df_named_column_t>& s
         columns.emplace_back(pair);
     }
 }
-
+/*
 df_dataframe_t::df_dataframe_t(std::initializer_list<df_named_column_t>&& sources) {
     df_debug4("create df_dataframe_t by move");
     columns.reserve(sources.size() * 2);
@@ -98,7 +78,7 @@ df_dataframe_t::df_dataframe_t(std::initializer_list<df_named_column_t>&& source
     for (auto& pair : sources) {
         columns.emplace_back(std::move((df_named_column_t&)pair));
     }
-}
+}*/
 
 
 
@@ -175,12 +155,12 @@ const df_column_t& df_dataframe_t::operator[](const char* name) const {
 
 
 
-df_row_t df_dataframe_t::loc(long index) {
+df_row_t df_dataframe_t::row(long index) {
     return df_row_t(&columns, df_calculate_index(index, get_row_count()), 1);
 }
 
 
-df_const_row_t df_dataframe_t::loc(long index) const {
+df_const_row_t df_dataframe_t::row(long index) const {
     return df_const_row_t(&columns, df_calculate_index(index, get_row_count()), 1);
 }
 
@@ -238,7 +218,7 @@ df_dataframe_t& df_dataframe_t::add_row(const df_const_row_t& source) {
 // == print ==
 
 std::ostream& df_dataframe_t::write_stream(std::ostream& os) const {
-    return range_rows().write_stream(os);
+    return rows().write_stream(os);
 }
 
 

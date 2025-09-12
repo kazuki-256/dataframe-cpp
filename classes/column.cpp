@@ -3,147 +3,49 @@
 #include "../config.hpp"
 #include "column.hpp"
 #include "object.cpp"
+#include "object_iterator.cpp"
 
 
 
 
 // ==== df_column_t ====
 
-// == iterator ==
-
-class df_column_t::memory_iterator_t {
-    friend class df_column_t;
-protected:
-    df_column_t* source = NULL;
-    long index = 0;
-
-
-    constexpr memory_iterator_t(df_column_t* column) : source(column) {}
-public:
-    constexpr memory_iterator_t(long index) : index(index) {}
-
-    inline memory_iterator_t& operator++() {
-        index++;
-        return *this;
-    }
-
-    inline memory_iterator_t& operator++(int) {
-        index++;
-        return *this;
-    }
-
-    inline memory_iterator_t& operator+=(long offset) {
-        index += offset;
-        return *this;
-    }
-
-    inline bool operator!=(const memory_iterator_t& other) const {
-        return index != other.index;
-    }
-
-    inline uint8_t* get_value() const {
-        return source->values + index * source->size_per_data;
-    }
-
-    inline bool* get_null() const {
-        return source->nulls + index;
-    }
-};
-
-
-class df_column_t::const_memory_iterator_t : public df_column_t::memory_iterator_t {
-    friend class df_column_t;
-    
-    constexpr const_memory_iterator_t(const df_column_t* column) : memory_iterator_t((df_column_t*)column) {}
-
-public:
-    constexpr const_memory_iterator_t(long index) : memory_iterator_t(index) {}
-
-    inline const uint8_t* get_value() const {
-        return source->values + index * source->size_per_data;
-    }
-
-    inline const bool* get_null() const {
-        return source->nulls + index;
-    }
-};
-
-
-
-
-class df_column_t::object_iterator_t : public df_column_t::memory_iterator_t {
-    friend class df_column_t;
-protected:
-    df_object_t proxy;
-
-
-    inline object_iterator_t(df_column_t* column) : memory_iterator_t(column) {
-        proxy.target_type = column->data_type;
-        proxy.lock_state = true;
-    }
-public:
-    constexpr object_iterator_t(long index) : memory_iterator_t(index) {}
-
-    inline df_object_t& operator*() {
-        proxy.set_target(get_null(), get_value(), source->type_loader);
-        return proxy;
-    }
-};
-
-
-class df_column_t::const_object_iterator_t : public df_column_t::object_iterator_t {
-    friend class df_column_t;
-
-    inline const_object_iterator_t(const df_column_t* column) : object_iterator_t((df_column_t*)column) {}
-
-public:
-    constexpr const_object_iterator_t(long index) : object_iterator_t(index) {}
-
-    inline const df_object_t& operator*() {
-        proxy.set_target(get_null(), get_value(), source->type_loader);
-        return proxy;
-    }
-};
-
-
-
-
-df_column_t::memory_iterator_t df_column_t::memory_begin() {
-    return memory_iterator_t(this);
+df_memory_iterator_t df_column_t::memory_begin() {
+    return df_memory_iterator_t(this, 0);
 }
 
-df_column_t::memory_iterator_t df_column_t::memory_end() {
-    return memory_iterator_t(length);
+df_memory_iterator_t df_column_t::memory_end() {
+    return df_memory_iterator_t(NULL, length);
 }
 
 
 
-df_column_t::const_memory_iterator_t df_column_t::memory_begin() const {
-    return const_memory_iterator_t(this);
+df_const_memory_iterator_t df_column_t::memory_begin() const {
+    return df_const_memory_iterator_t(this, 0);
 }
 
-df_column_t::const_memory_iterator_t df_column_t::memory_end() const {
-    return const_memory_iterator_t(length);
-}
-
-
-
-df_column_t::object_iterator_t df_column_t::begin() {
-    return object_iterator_t(this);
-}
-
-df_column_t::object_iterator_t df_column_t::end() {
-    return object_iterator_t(length);
+df_const_memory_iterator_t df_column_t::memory_end() const {
+    return df_const_memory_iterator_t(NULL, length);
 }
 
 
 
-df_column_t::const_object_iterator_t df_column_t::begin() const {
-    return const_object_iterator_t(this);
+df_object_iterator_t df_column_t::begin() {
+    return df_object_iterator_t(this, 0);
 }
 
-df_column_t::const_object_iterator_t df_column_t::end() const {
-    return const_object_iterator_t(length);
+df_object_iterator_t df_column_t::end() {
+    return df_object_iterator_t(length);
+}
+
+
+
+df_const_object_iterator_t df_column_t::begin() const {
+    return df_const_object_iterator_t(this, 0);
+}
+
+df_const_object_iterator_t df_column_t::end() const {
+    return df_const_object_iterator_t(length);
 }
 
 
@@ -194,13 +96,12 @@ inline void df_column_t::typed_init_no_init(df_type_t data_type, const std::init
     df_debug3("typed-make %s[0] at %p", df_type_get_string(data_type), this);
     basic_init(data_type, sources.size(), sources.size());
 
-    bool* null_ptr = nulls;
-    uint8_t* value_ptr = values;
+    df_memory_iterator_t iter = memory_begin();
 
     for (T val : sources) {
-        *null_ptr++ = true;
-        *value_ptr = val;
-        value_ptr += size_per_data;
+        *iter.get_null() = false;
+        *((T*)iter.get_value()) = val;
+        iter++;
     }
 }
 
@@ -228,14 +129,14 @@ df_column_t::df_column_t(const std::initializer_list<df_object_t>& objects) {
 // == copy ==
 
 df_column_t::df_column_t(const df_column_t& src) noexcept {
-    df_debug3("copy1 %s[%ld] column from %p to %p", df_type_get_string(data_type), src.get_length(), &src, this);
+    df_debug3("copy1 %s[%ld] column from %p to %p", df_type_get_string(src.data_type), src.get_length(), &src, this);
     basic_init(src.data_type, 0, src.length);
     basic_extend_column(src);
 }
 
 
 df_column_t& df_column_t::df_column_t::operator=(const df_column_t& src) noexcept {
-    df_debug3("copy2 %s[%ld] column from %p to %p", df_type_get_string(data_type), src.get_length(), &src, this);
+    df_debug3("copy2 %s[%ld] column from %p to %p", df_type_get_string(src.data_type), src.get_length(), &src, this);
     if (this == &src) {
         return *this;
     }
@@ -269,13 +170,13 @@ inline void df_column_t::move(df_column_t& src) noexcept {
 
 
 df_column_t::df_column_t(df_column_t&& src) noexcept {
-    df_debug3("move1 %s[%ld] column from %p to %p", df_type_get_string(data_type), src.get_length(), &src, this);
+    df_debug3("move1 %s[%ld] column from %p to %p", df_type_get_string(src.data_type), src.get_length(), &src, this);
     move(src);
 }
 
 
 df_column_t& df_column_t::operator=(df_column_t&& src) noexcept {
-    df_debug3("move2 %s[%ld] column from %p to %p", df_type_get_string(data_type), src.get_length(), &src, this);
+    df_debug3("move2 %s[%ld] column from %p to %p", df_type_get_string(src.data_type), src.get_length(), &src, this);
     if (this == &src) {
         return *this;
     }
@@ -361,7 +262,7 @@ template<typename T> inline df_column_t& df_column_t::basic_extend_values(T& obj
     df_value_init_callback_t initer = df_value_get_init_callback(data_type);
     df_value_write_callback_t writer = df_value_get_write_callback(data_type, data_type);
 
-    memory_iterator_t dest = memory_begin();
+    df_memory_iterator_t dest = memory_begin();
 
     length += objects.size();
 
@@ -390,6 +291,7 @@ template<typename T> inline df_column_t& df_column_t::basic_extend_values(T& obj
             object.target_preload, object.target_type,
             dest.get_value(), data_type
         );
+        df_debug7("value: %lf", *(double*)dest.get_value());
         dest++;
     }
 
@@ -401,8 +303,8 @@ template<typename T> inline df_column_t& df_column_t::basic_extend_values(T& obj
 inline void df_column_t::basic_extend_column(const df_column_t& other) {
     df_value_write_callback_t writer = df_value_get_write_callback(other.data_type, data_type);
 
-    const_memory_iterator_t src = other.memory_begin();
-    memory_iterator_t dest = memory_begin() += length;
+    df_const_memory_iterator_t src = other.memory_begin();
+    df_memory_iterator_t dest = memory_begin() += length;
     length += other.length;
 
     for (; src != other.memory_end(); src++, dest++) {
@@ -501,7 +403,7 @@ df_column_t df_column_t::merged(const df_column_t& other) const {
 std::ostream& df_column_t::write_stream(std::ostream& os, const char* column_name) const {
     df_value_write_callback_t writer = df_value_get_write_callback(data_type, DF_TYPE_TEXT);
 
-    const_memory_iterator_t iter = memory_begin();
+    df_const_memory_iterator_t iter = memory_begin();
     df_value_t value;
     std::string buf;
 
@@ -567,30 +469,28 @@ df_column_float64_t::df_column_float64_t(const std::initializer_list<double>& so
 
 
 df_column_text_t::df_column_text_t(const std::initializer_list<const char*>& sources) {
-    df_debug3("typed-make %s[0] at %p", df_type_get_string(data_type), this);
-    basic_init(data_type, sources.size(), sources.size());
+    df_debug3("typed-make %s[0] at %p", df_type_get_string(DF_TYPE_TEXT), this);
+    basic_init(DF_TYPE_TEXT, sources.size(), sources.size());
 
-    bool* null_ptr = nulls;
-    uint8_t* value_ptr = values;
+    df_memory_iterator_t iter = memory_begin();
 
     for (const char* val : sources) {
-        *null_ptr++ = true;
-        new (value_ptr) std::string(val);
-        value_ptr += size_per_data;
+        *iter.get_null() = false;
+        new (iter.get_value()) std::string(val);
+        iter++;
     }
 }
 
 df_column_text_t::df_column_text_t(const std::initializer_list<std::string>& sources) {
-    df_debug3("typed-make %s[0] at %p", df_type_get_string(data_type), this);
-    basic_init(data_type, sources.size(), sources.size());
+    df_debug3("typed-make %s[0] at %p", df_type_get_string(DF_TYPE_TEXT), this);
+    basic_init(DF_TYPE_TEXT, sources.size(), sources.size());
 
-    bool* null_ptr = nulls;
-    uint8_t* value_ptr = values;
+    df_memory_iterator_t iter = memory_begin();
 
     for (const std::string& val : sources) {
-        *null_ptr++ = true;
-        new (value_ptr) std::string(val);
-        value_ptr += size_per_data;
+        *iter.get_null() = false;
+        new (iter.get_value()) std::string(val);
+        iter++;
     }
 }
 
@@ -601,16 +501,15 @@ df_column_date_t::df_column_date_t(const std::initializer_list<df_date_t>& sourc
 }
 
 df_column_time_t::df_column_time_t(const std::initializer_list<const char*>& sources) {
-    df_debug3("typed-make %s[0] at %p", df_type_get_string(data_type), this);
-    basic_init(data_type, sources.size(), sources.size());
+    df_debug3("typed-make %s[0] at %p", df_type_get_string(DF_TYPE_TIME), this);
+    basic_init(DF_TYPE_TIME, sources.size(), sources.size());
 
-    bool* null_ptr = nulls;
-    uint8_t* value_ptr = values;
+    df_memory_iterator_t iter = memory_begin();
 
     for (const char* val : sources) {
-        *null_ptr++ = true;
-        new (value_ptr) df_date_t(val, DF_TIME_FORMAT);
-        value_ptr += size_per_data;
+        *iter.get_null() = false;
+        new (iter.get_value()) df_date_t(val, DF_TIME_FORMAT);
+        iter++;
     }
 }
 

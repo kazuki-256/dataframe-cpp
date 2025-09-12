@@ -53,7 +53,7 @@ df_value_release_callback_t df_value_get_release_callback(df_type_t type) {
     if (type == DF_TYPE_TEXT) {
         return df_value_release_string;
     }
-return NULL;
+    return NULL;
 }
 
 
@@ -212,13 +212,13 @@ df_value_t df_value_write_long_long(df_value_t value, void* dest) {
 
 df_value_t df_value_write_long_float(df_value_t value, void* dest) {
     df_value_t dest_value = (double)value.as_long;
-    *(float*)dest = dest_value.as_long;
+    *(float*)dest = dest_value.as_double;
     return dest_value;
 }
 
 df_value_t df_value_write_long_double(df_value_t value, void* dest) {
     df_value_t dest_value = (double)value.as_long;
-    *(double*)dest = dest_value.as_long;
+    *(double*)dest = dest_value.as_double;
     return dest_value;
 }
 
@@ -325,7 +325,8 @@ df_value_t df_value_write_string_float(df_value_t value, void* dest) {
 
 df_value_t df_value_write_string_double(df_value_t value, void* dest) {
     df_value_t dest_value;
-    *(float*)dest = dest_value.as_double = std::stod(*value.as_string);
+    *(double*)dest = dest_value.as_double = std::stod(*value.as_string);
+    df_debug7("double %lf %s", dest_value.as_double, value.as_string->c_str());
     return dest_value;
 }
 
