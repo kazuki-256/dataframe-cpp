@@ -1,4 +1,4 @@
-#define DF_DEBUG_LEVEL 10
+#define DF_DEBUG_LEVEL 7
 #include "classes/dataframe.cpp"
 #include "vector.cpp"
 
@@ -12,8 +12,6 @@ int main(int argc, char** argv) {
         {"E", df_range_int32(0, 30)},
     };
 
-    df.add_row(df.loc(15));
-
-    std::cout << df << "\n";
+    std::cout << df.range_rows();
     return 0;
 }

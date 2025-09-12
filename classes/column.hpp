@@ -7,19 +7,15 @@
 #include <set>
 
 
-
 class df_column_t {
     friend class df_dataframe_t;
     friend class std::pair<std::string, df_column_t>;
 
-    friend df_column_t df_range_uint8(uint8_t, uint8_t, uint8_t);
-    friend df_column_t df_range_int16(short, short, short);
-    friend df_column_t df_range_int32(int, int, int);
-    friend df_column_t df_range_int64(long, long, long);
+    friend class df_row_t;
+    friend class df_const_row_t;
 
-    friend df_column_t df_range_date(df_date_t, df_date_t, df_interval_t);
-    friend df_column_t df_range_time(df_date_t, df_date_t, df_interval_t);
-    friend df_column_t df_range_datetime(df_date_t, df_date_t, df_interval_t);
+    friend class df_range_rows_t;
+    friend class df_const_range_rows_t;
 protected:
     df_type_t data_type = DF_TYPE_UINT8;
     int size_per_data = 1;
@@ -190,18 +186,33 @@ public:
 
     // == vector ==
 
+    friend df_column_t df_range_uint8(uint8_t, uint8_t, uint8_t);
+    friend df_column_t df_range_int16(short, short, short);
+    friend df_column_t df_range_int32(int, int, int);
+    friend df_column_t df_range_int64(long, long, long);
+
+    friend df_column_t df_range_date(df_date_t, df_date_t, df_interval_t);
+    friend df_column_t df_range_time(df_date_t, df_date_t, df_interval_t);
+    friend df_column_t df_range_datetime(df_date_t, df_date_t, df_interval_t);
+
+    
+    df_query_t operator+(const df_query_t& query) const;
     df_query_t operator+(long num) const;
     df_query_t operator+(double num) const;
 
+    df_query_t operator+(const df_query_t& query) const;
     df_query_t operator-(long num) const;
     df_query_t operator-(double num) const;
 
+    df_query_t operator+(const df_query_t& query) const;
     df_query_t operator*(long num) const;
     df_query_t operator*(double num) const;
 
+    df_query_t operator+(const df_query_t& query) const;
     df_query_t operator/(long num) const;
     df_query_t operator/(double num) const;
 
+    df_query_t operator+(const df_query_t& query) const;
     df_query_t operator%(long num) const;
     df_query_t operator%(double num) const;
 };

@@ -11,7 +11,6 @@ features:
 
 #pragma once
 
-
 #include "../config.hpp"
 #include "value.hpp"
 
@@ -29,7 +28,7 @@ constexpr df_null_t DF_NULL;
 
 
 class df_object_t {
-    friend class df_mem_block_t;
+    friend class df_const_row_t;
     friend class df_object_iterator_t;
     friend class df_const_object_iterator_t;
     friend class df_column_t;
@@ -83,6 +82,8 @@ public:
 
     df_object_t(df_null_t);
 
+    template<typename T> df_object_t(const std::basic_ostream<T>& os) = delete;
+    df_object_t(const df_row_t&) = delete;
     df_object_t(const char*&) = delete;
 
 

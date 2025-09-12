@@ -2,181 +2,8 @@
 
 #include "dataframe.hpp"
 #include "column.cpp"
-
-
-// ==== df_const_row_t ====
-
-// == structures ==
-
-struct df_const_row_t::object_info_t {
-    const std::string* name;
-    long last_index;
-    df_column_t::object_iterator_t iter;
-};
-
-
-struct df_const_row_t::matched_info_t {
-    const void* address;
-    object_info_t* object_info;
-};
-
-
-// == destroy ==
-
-df_const_row_t::~df_const_row_t() {
-    if (matched_start) {
-        free(matched_start);
-    }
-    if (object_start) {
-        free(object_start);
-    }
-}
-
-
-// == make ==
-
-df_const_row_t::df_const_row_t(const std::vector<df_named_column_t>* columns, long index, long interval) {
-    const int COLUMN_LENGTH = columns->size();
-
-    unextended_columns = (std::vector<df_named_column_t>*)columns;
-
-    matched_start = (matched_info_t*)calloc(COLUMN_LENGTH * 2 + 1, sizeof(matched_info_t));
-    matched_end = matched_start + COLUMN_LENGTH * 2;
-
-    object_start = (object_info_t*)malloc(COLUMN_LENGTH * sizeof(object_info_t));
-    object_end = object_start;
-
-    current = index;
-    this->interval = interval;
-}
-
-
-constexpr df_const_row_t::df_const_row_t(long index) : current(index) {}
-
-
-// == get ==
-
-int df_const_row_t::get_length() const {
-    return unextended_columns->size();
-}
-
-df_const_row_t& df_const_row_t::operator*() {
-    return *this;
-}
-
-
-
-const df_object_t& df_const_row_t::operator[](const char* name) {
-    // == from matched cashe ==
-
-    matched_info_t* match_info;
-    object_info_t* object_info;
-
-    for (match_info = matched_start; match_info->address != NULL; match_info++) {
-        // execute only matched
-        if (match_info->address == name) {
-            object_info = match_info->object_info;
-            goto label_get_data;
-        }
-    }
-
-    // == from created object list ==
-    for (object_info = object_start; object_info < object_end; object_info++) {
-        if (object_info->name->compare(name) == 0) {
-            goto label_make_matched;
-        }
-    }
-
-    // == match from unextended_columns ==
-    
-    for (const df_named_column_t& column : *unextended_columns) {
-        // filter not matching
-        if (column.first.compare(name) != 0) {
-            continue;
-        }
-
-        // make object_info
-        *object_info = {&column.first, 0, column.second.begin()};
-        object_end++;
-
-        goto label_make_matched;
-    }
-
-    throw df_exception_out_of_index();
-
-label_make_matched:
-    if (match_info >= matched_end) {
-        int capacity = matched_end - matched_start;
-        matched_info_t* buffer = (matched_info_t*)realloc(matched_start, (capacity * 2 + 1) * sizeof(matched_info_t));
-
-        if (buffer != NULL) {
-            matched_start = buffer;
-            matched_end = buffer + capacity * 2;
-            match_info = buffer + capacity;
-        }
-    }
-
-    if (match_info < matched_end) {
-        match_info->address = name;
-        match_info->object_info = object_info;
-    }
-
-label_get_data:
-    if (object_info->last_index != current) {
-        object_info->iter += (current - object_info->last_index);
-        object_info->last_index = current;
-    }
-
-    return *object_info->iter;
-}
-
-// == other ==
-
-df_const_row_t& df_const_row_t::operator++() {
-    current += interval;
-    return *this;
-}
-
-
-bool df_const_row_t::operator!=(const df_const_row_t& other) {
-    return current != other.current;
-}
-
-
-// == iterator ==
-
-class df_const_row_t::const_iterator_t {
-    
-};
-
-
-
-
-
-
-
-
-
-
-// ==== df_row_t ====
-
-// == make ==
-
-df_row_t::df_row_t(
-    std::vector<df_named_column_t>* columns, long index, long interval
-) : df_const_row_t((const std::vector<df_named_column_t>*)columns, index, interval) {}
-
-
-constexpr df_row_t::df_row_t(long index) : df_const_row_t(index) {}
-
-
-// == other ==
-
-df_object_t& df_row_t::operator[](const char* name) {
-    return (df_object_t&)df_const_row_t::operator[](name);
-}
-
-
+#include "row.cpp"
+#include "range_rows.cpp"
 
 
 
@@ -206,44 +33,7 @@ std::vector<df_named_column_t>::const_iterator df_dataframe_t::end() const {
 
 
 
-class df_dataframe_t::range_rows_t {
-    friend class df_dataframe_t;
-
-    df_dataframe_t* df;
-    long start_index;
-    long end_index;
-    long interval;
-    
-    range_rows_t(df_dataframe_t* df, long start_index, long end_index, long interval) {
-        this->df = df;
-        this->start_index = start_index;
-        this->end_index = end_index;
-        this->interval = interval;
-    }
-
-public:
-
-    df_row_t begin() {
-        return df_row_t(&df->columns, start_index, interval);
-    }
-
-    df_row_t end() {
-        return df_row_t(end_index);
-    }
-
-
-    df_const_row_t begin() const {
-        return df_const_row_t(&df->columns, start_index, interval);
-    }
-
-
-    df_const_row_t end() const {
-        return df_const_row_t(end_index);
-    }
-};
-
-
-df_dataframe_t::range_rows_t df_dataframe_t::range_rows(long start = 0, long end = -1, long interval = 1) {
+inline void df_dataframe_t::basic_range_rows(long& start, long& end, long& interval) const {
     if (interval == 0) {
         throw df_exception_interval_couldnot_be_0();
     }
@@ -251,15 +41,24 @@ df_dataframe_t::range_rows_t df_dataframe_t::range_rows(long start = 0, long end
     const long LENGTH = get_row_count();
 
     start = df_calculate_index(start, LENGTH);
-    end = df_calculate_index(end + 1, LENGTH);
+    end = df_calculate_index(end, LENGTH);
 
     long range = end - start;
     if (range * interval < 0) {
         throw df_exception_endless_range();
     }
     end = end - range % interval;
+}
 
-    return range_rows_t(this, start, end, interval);
+
+df_const_range_rows_t df_dataframe_t::range_rows(long start = 0, long end = -1, long interval = 1) const {
+    basic_range_rows(start, end, interval);
+    return df_const_range_rows_t(this, start, end, interval);
+}
+
+df_range_rows_t df_dataframe_t::range_rows(long start = 0, long end = -1, long interval = 1) {
+    basic_range_rows(start, end, interval);
+    return df_range_rows_t(this, start, end, interval);
 }
 
 
@@ -381,7 +180,7 @@ df_row_t df_dataframe_t::loc(long index) {
 }
 
 
-const df_const_row_t df_dataframe_t::loc(long index) const {
+df_const_row_t df_dataframe_t::loc(long index) const {
     return df_const_row_t(&columns, df_calculate_index(index, get_row_count()), 1);
 }
 
@@ -429,17 +228,9 @@ df_dataframe_t& df_dataframe_t::add_column(const std::string& name, const df_col
 
 
 
-df_dataframe_t& df_dataframe_t::add_row(const df_const_row_t& source);/* {
-    if (source.get_length() < get_column_count()) {
-        throw df_exception_t("not suiting length %d < %d", source.get_length(), get_column_count());
-    }
-
-    int i = 0;
-    // for (auto object : source) {
-        
-    // }
+df_dataframe_t& df_dataframe_t::add_row(const df_const_row_t& source) {
+    return *this;
 }
-*/
 
 
 
@@ -447,53 +238,7 @@ df_dataframe_t& df_dataframe_t::add_row(const df_const_row_t& source);/* {
 // == print ==
 
 std::ostream& df_dataframe_t::write_stream(std::ostream& os) const {
-    const int COLUMN_COUNT = get_column_count();
-    const long ROW_COUNT = get_row_count();
-
-    // loader, writer, iterator
-    struct write_info_t {
-        df_column_t::const_memory_iterator_t iter = (bool*)NULL;
-        df_value_load_callback_t loader;
-        df_value_write_callback_t writer;
-    } write_info_list[COLUMN_COUNT];
-
-    // == print titles ==
-
-    os << "| ";
-    int index = 0;
-    for (auto& named_column : columns) {
-        os << named_column.first << " | ";
-
-        write_info_list[index++] = {
-            named_column.second.memory_begin(),
-            named_column.second.type_loader,
-            df_value_get_write_callback(named_column.second.get_data_type(), DF_TYPE_TEXT)
-        };
-    }
-    os << "\n";
-
-    // == print data ==
-
-    write_info_t* END = write_info_list + COLUMN_COUNT;
-    std::string s(32, '\0');
-    
-    for (int row = 0; row < ROW_COUNT; row++) {
-        os << "| ";
-        for (write_info_t* info = write_info_list; info < END; info->iter++, info++) {
-            if (*info->iter.get_null()) {
-                os << "null | ";
-                continue;
-            }
-
-            // const uint8_t* ptr = info->iter.get_value();
-            df_value_t value = info->loader(info->iter.get_value());
-            info->writer(value, &s);
-
-            os << s << " | ";
-        }
-        os << "\n";
-    }
-    return os;
+    return range_rows().write_stream(os);
 }
 
 

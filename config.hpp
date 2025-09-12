@@ -122,7 +122,7 @@ constexpr char DF_DEFAULT_COLUMN_NAME[] = "COLUMN";
 
 inline long df_calculate_index(long index, const long LENGTH) {
   if (index < 0) {
-    index = LENGTH - index;
+    index = LENGTH + index;
 
     if (index < 0) {
       return index;

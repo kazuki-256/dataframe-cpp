@@ -14,71 +14,39 @@
 class df_column_t::memory_iterator_t {
     friend class df_column_t;
 protected:
-    bool* null_ptr = NULL;
-    uint8_t* value_ptr = NULL;
-
-    bool* null_original = NULL;
-    const df_column_t* source = NULL;
-
-    int size_per_data = 0;
+    df_column_t* source = NULL;
+    long index = 0;
 
 
-    memory_iterator_t(df_column_t* column) {
-        null_ptr = column->nulls;
-        value_ptr = column->values;
-
-        null_original = column->nulls;
-        source = column;
-        
-        size_per_data = size_per_data;
-    }
-
-    inline void handle_if_source_change() {
-        if (null_original != source->nulls) {
-            long index = null_ptr - null_original;
-
-            null_ptr = source->nulls + index * size_per_data;
-            value_ptr = source->values + index;
-            
-            null_original = source->nulls;
-        }
-    }
-
-    inline memory_iterator_t& add() {
-        handle_if_source_change();
-        value_ptr += size_per_data;
-        null_ptr++;
-        return *this;
-    }
-    
+    constexpr memory_iterator_t(df_column_t* column) : source(column) {}
 public:
-    constexpr memory_iterator_t(bool* p) : null_ptr(p) {}
-    
-    memory_iterator_t& operator++() {
-        return add();
-    }
-    memory_iterator_t& operator++(int) {
-        return add();
-    }
+    constexpr memory_iterator_t(long index) : index(index) {}
 
-    memory_iterator_t& operator+=(int index) {
-        handle_if_source_change();
-        value_ptr += index * size_per_data;
-        null_ptr += index;
+    inline memory_iterator_t& operator++() {
+        index++;
         return *this;
     }
-    
 
-    bool operator!=(const memory_iterator_t& other) {
-        return null_ptr != other.null_ptr;
+    inline memory_iterator_t& operator++(int) {
+        index++;
+        return *this;
     }
 
-    uint8_t* get_value() const {
-        return value_ptr;
+    inline memory_iterator_t& operator+=(long offset) {
+        index += offset;
+        return *this;
     }
 
-    bool* get_null() const {
-        return null_ptr;
+    inline bool operator!=(const memory_iterator_t& other) const {
+        return index != other.index;
+    }
+
+    inline uint8_t* get_value() const {
+        return source->values + index * source->size_per_data;
+    }
+
+    inline bool* get_null() const {
+        return source->nulls + index;
     }
 };
 
@@ -86,38 +54,38 @@ public:
 class df_column_t::const_memory_iterator_t : public df_column_t::memory_iterator_t {
     friend class df_column_t;
     
-    const_memory_iterator_t(const df_column_t* column) : memory_iterator_t((df_column_t*)column) {}
+    constexpr const_memory_iterator_t(const df_column_t* column) : memory_iterator_t((df_column_t*)column) {}
 
 public:
-    constexpr const_memory_iterator_t(bool* p) : memory_iterator_t(p) {}
+    constexpr const_memory_iterator_t(long index) : memory_iterator_t(index) {}
 
-    const uint8_t* get_value() const {
-        return value_ptr;
+    inline const uint8_t* get_value() const {
+        return source->values + index * source->size_per_data;
     }
 
-    const bool* get_null() const {
-        return null_ptr;
+    inline const bool* get_null() const {
+        return source->nulls + index;
     }
 };
+
+
 
 
 class df_column_t::object_iterator_t : public df_column_t::memory_iterator_t {
     friend class df_column_t;
 protected:
     df_object_t proxy;
-    df_value_load_callback_t loader = NULL;
 
-    object_iterator_t(df_column_t* column) : memory_iterator_t(column) {
+
+    inline object_iterator_t(df_column_t* column) : memory_iterator_t(column) {
         proxy.target_type = column->data_type;
         proxy.lock_state = true;
-        
-        this->loader = column->type_loader;
     }
 public:
-    constexpr object_iterator_t(bool* p) : memory_iterator_t(p) {}
+    constexpr object_iterator_t(long index) : memory_iterator_t(index) {}
 
-    df_object_t& operator*() {
-        proxy.set_target(null_ptr, value_ptr, loader);
+    inline df_object_t& operator*() {
+        proxy.set_target(get_null(), get_value(), source->type_loader);
         return proxy;
     }
 };
@@ -126,10 +94,15 @@ public:
 class df_column_t::const_object_iterator_t : public df_column_t::object_iterator_t {
     friend class df_column_t;
 
-    const_object_iterator_t(const df_column_t* column) : object_iterator_t((df_column_t*)column) {}
+    inline const_object_iterator_t(const df_column_t* column) : object_iterator_t((df_column_t*)column) {}
 
 public:
-    constexpr const_object_iterator_t(bool* p) : object_iterator_t(p) {}
+    constexpr const_object_iterator_t(long index) : object_iterator_t(index) {}
+
+    inline const df_object_t& operator*() {
+        proxy.set_target(get_null(), get_value(), source->type_loader);
+        return proxy;
+    }
 };
 
 
@@ -140,7 +113,7 @@ df_column_t::memory_iterator_t df_column_t::memory_begin() {
 }
 
 df_column_t::memory_iterator_t df_column_t::memory_end() {
-    return memory_iterator_t(nulls + length);
+    return memory_iterator_t(length);
 }
 
 
@@ -150,7 +123,7 @@ df_column_t::const_memory_iterator_t df_column_t::memory_begin() const {
 }
 
 df_column_t::const_memory_iterator_t df_column_t::memory_end() const {
-    return const_memory_iterator_t(nulls + length);
+    return const_memory_iterator_t(length);
 }
 
 
@@ -160,7 +133,7 @@ df_column_t::object_iterator_t df_column_t::begin() {
 }
 
 df_column_t::object_iterator_t df_column_t::end() {
-    return object_iterator_t(nulls + length);
+    return object_iterator_t(length);
 }
 
 
@@ -170,7 +143,7 @@ df_column_t::const_object_iterator_t df_column_t::begin() const {
 }
 
 df_column_t::const_object_iterator_t df_column_t::end() const {
-    return const_object_iterator_t(nulls + length);
+    return const_object_iterator_t(length);
 }
 
 
