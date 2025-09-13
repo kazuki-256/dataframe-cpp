@@ -207,6 +207,9 @@ df_row_t::iterator_t df_row_t::begin() {
         }
         object_end = ptr;
         df_debug7("test %p %p", object_start, object_end);
+
+        matched_end = matched_start;
+        matched_start->address = NULL;
     }
 
     // == make iterator ==
