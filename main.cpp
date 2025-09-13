@@ -1,4 +1,4 @@
-#define DF_DEBUG_LEVEL 7
+#define DF_DEBUG_LEVEL 8
 #include "classes/dataframe.cpp"
 #include "vector.cpp"
 
@@ -19,8 +19,9 @@ int main(int argc, char** argv) {
 
 	// range each row
 	for (df_row_t& row : df.rows()) {		// df_row_t is a lazy row, it wouldn't iterate useless columns
-		std::cout << row["date"] << "   " << row["text"] << "\n";
+		std::cout << row.at("date") << "   " << row.at("text") << "   " << row.at("pi") << "\n";
 
+        row.begin();
 		std::cout << row << "\n";	// print row
 	}
 

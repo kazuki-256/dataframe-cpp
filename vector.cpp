@@ -106,7 +106,6 @@ df_column_t df_range_datetime(df_date_t start, df_date_t end, df_interval_t inte
         df_value_write_long_long(start, iter.get_value());
         column.length++;
     }
-        std::cout << column << "\n";
     return column;
 }
 
