@@ -155,66 +155,53 @@ bool df_row_t::operator!=(const df_row_t& other) {
 class df_row_t::iterator_t {
     friend class df_row_t;
 protected:
-    object_info_t* info;
-    long current;
+    std::vector<df_named_column_t>::iterator iter;
+    df_object_t proxy;
+    long index;
 
-    inline iterator_t(object_info_t* object_info, long index) {
-        info = object_info;
-        current = index;
+    inline iterator_t(std::vector<df_named_column_t>::iterator iter, long index) {
+        this->iter = iter;
+        this->index = index;
+        proxy.lock_state = true;
     }
 public:
     inline const df_object_t& operator*() {
-        info->object.set_target(
-            info->column->nulls + current, info->column->values + current * info->column->size_per_data,
-            info->column->type_loader
+        proxy.target_type = iter->second.data_type;
+        proxy.set_target(
+            iter->second.nulls + index, iter->second.values + index * iter->second.size_per_data,
+            iter->second.type_loader
         );
-        return info->object;
+        return proxy;
     }
 
     inline iterator_t& operator++() {
-        info++;
+        iter++;
         return *this;
     }
 
     inline iterator_t& operator++(int) {
-        info++;
+        iter++;
         return *this;
     }
 
     inline iterator_t& operator+=(int offset) {
-        info += offset;
+        iter += offset;
         return *this;
     }
 
     inline bool operator!=(const iterator_t& other) const {
-        return info != other.info;
+        return iter != other.iter;
     }
 };
 
 
 df_row_t::iterator_t df_row_t::begin() {
-    // == fill object_info_t ==
-    if (object_start + source->size() != object_end) {
-        object_info_t* ptr = object_start;
-
-        for (df_named_column_t& column : *source) {
-            ptr->name = &column.first;
-            ptr->column = (df_column_t*)&column.second;
-
-            ptr->object.target_type = column.second.data_type;
-            ptr->object.lock_state = true;
-            ptr++;
-        }
-        object_end = ptr;
-        df_debug7("test %p %p", object_start, object_end);
-    }
-
     // == make iterator ==
-    return iterator_t(object_start, current);
+    return iterator_t(source->begin(), current);
 }
 
 df_row_t::iterator_t df_row_t::end() {
-    return iterator_t(object_end, 0);
+    return iterator_t(source->end(), 0);
 }
     
 
@@ -223,11 +210,15 @@ df_row_t::iterator_t df_row_t::end() {
 
 std::ostream& df_row_t::write_stream(std::ostream& os) {
     df_debug7("");
-    iterator_t iter = begin();
+    struct write_info {
+        
+    };
 
     os << "| ";
-    for (object_info_t* ptr = object_start; ptr < object_end; ptr++) {
+    for (df_named_column_t& column : *source) {
         os << *ptr->name << " | ";
+
+        
     }
 
     os << "\n| ";

@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
 
 	// range each row
 	for (df_row_t& row : df.rows()) {		// df_row_t is a lazy row, it wouldn't iterate useless columns
-		std::cout << row.at("date") << "   " << row.at("text") << "   " << row.at("pi") << "\n";
+		std::cout << row["date"] << "   " << row["text"] << "   " << row["pi"] << "\n";
 
         row.begin();
 		std::cout << row << "\n";	// print row
