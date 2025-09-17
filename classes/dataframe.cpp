@@ -5,6 +5,10 @@
 #include "row.cpp"
 #include "row_range.cpp"
 
+#include <chrono>
+#include <thread>
+
+
 
 
 
@@ -13,40 +17,20 @@
 
 // ==== df_dataframe_t ====
 
-// == iterator ==
-
-std::vector<df_named_column_t>::iterator df_dataframe_t::begin() {
-    return columns.begin();
-}
-
-std::vector<df_named_column_t>::iterator df_dataframe_t::end() {
-    return columns.end();
-}
-
-std::vector<df_named_column_t>::const_iterator df_dataframe_t::begin() const {
-    return columns.begin();
-}
-
-std::vector<df_named_column_t>::const_iterator df_dataframe_t::end() const {
-    return columns.end();
-}
-
-
-
-df_row_range_t df_dataframe_t::rows(long start = 0, long end = -1, long interval = 1) {
-    return df_row_range_t(this, start, end, interval);
-}
-
-df_const_row_range_t df_dataframe_t::rows(long start = 0, long end = -1, long interval = 1) const {
-    return df_const_row_range_t(this, start, end, interval);
-}
-
-
-
 // == destroy ==
 
 df_dataframe_t::~df_dataframe_t() {
-    columns.clear();
+    for (auto& pair : active_columns) {
+        dropped_columns.emplace_back(pair.second);
+    }
+
+    int undeletable_count = 0;
+    for (df_column_t* ptr : dropped_columns) {
+        while (!ptr->is_deletable()) {
+            std::this_thread::sleep_for(std::chrono::microseconds(50));
+        }
+        delete ptr;
+    }
 }
 
 
@@ -56,27 +40,27 @@ df_dataframe_t::~df_dataframe_t() {
 df_dataframe_t::df_dataframe_t() {}
 
 
-df_dataframe_t::df_dataframe_t(const std::initializer_list<df_named_column_t>& sources) {
+df_dataframe_t::df_dataframe_t(const std::initializer_list<std::pair<std::string, df_column_t>>& sources) {
     df_debug4("create df_dataframe_t by copy");
-    columns.reserve(sources.size() * 2);
+    active_columns.reserve(sources.size() * 2);
 
     long length = sources.begin()->second.get_length();
 
     for (auto& pair : sources) {
         if (length != pair.second.get_length()) {
-            throw df_exception_t("not same size columns!");
+            throw df_exception_t("not same size active_columns!");
         }
 
-        columns.emplace_back(pair);
+        active_columns.emplace_back(pair.first, new df_column_t(pair.second));
     }
 }
 /*
-df_dataframe_t::df_dataframe_t(std::initializer_list<df_named_column_t>&& sources) {
+df_dataframe_t::df_dataframe_t(std::initializer_list<std::pair<std::string, df_column_t>>&& sources) {
     df_debug4("create df_dataframe_t by move");
-    columns.reserve(sources.size() * 2);
+    active_columns.reserve(sources.size() * 2);
 
     for (auto& pair : sources) {
-        columns.emplace_back(std::move((df_named_column_t&)pair));
+        active_columns.emplace_back(std::move((std::pair<std::string, df_column_t*>&)pair));
     }
 }*/
 
@@ -85,14 +69,16 @@ df_dataframe_t::df_dataframe_t(std::initializer_list<df_named_column_t>&& source
 // == copy ==
 
 df_dataframe_t::df_dataframe_t(const df_dataframe_t& src) {
-    columns = src.columns;
+    active_columns.reserve(src.get_column_count() * 2);
+
+    for (auto& pair : src.active_columns) {
+        active_columns.emplace_back(pair.first, new df_column_t(*pair.second));
+    }
 }
 
 df_dataframe_t& df_dataframe_t::operator=(const df_dataframe_t& src) {
-    if (!columns.empty()) {
-        columns.clear();
-    }
-    columns = src.columns;
+    
+    active_columns = src.active_columns;
     return *this;
 }
 
@@ -100,35 +86,70 @@ df_dataframe_t& df_dataframe_t::operator=(const df_dataframe_t& src) {
 // == move ==
 
 df_dataframe_t::df_dataframe_t(df_dataframe_t&& src) noexcept {
-    columns = std::move(src.columns);
+    active_columns = std::move(src.active_columns);
 }
 
 
 df_dataframe_t& df_dataframe_t::operator=(df_dataframe_t&& src) noexcept {
-    columns = std::move(src.columns);
+    active_columns = std::move(src.active_columns);
     return *this;
 }
+
+
+
+
+
+// == iterator ==
+
+std::vector<std::pair<std::string, df_column_t*>>::iterator df_dataframe_t::begin() {
+    return active_columns.begin();
+}
+
+std::vector<std::pair<std::string, df_column_t*>>::iterator df_dataframe_t::end() {
+    return active_columns.end();
+}
+
+std::vector<std::pair<std::string, df_column_t*>>::const_iterator df_dataframe_t::begin() const {
+    return active_columns.begin();
+}
+
+std::vector<std::pair<std::string, df_column_t*>>::const_iterator df_dataframe_t::end() const {
+    return active_columns.end();
+}
+
+
+
+// == range ==
+
+df_row_range_t df_dataframe_t::rows(long start = 0, long end = -1, long interval = 1) {
+    return df_row_range_t(&active_columns, start, end, interval);
+}
+
+const df_row_range_t df_dataframe_t::rows(long start = 0, long end = -1, long interval = 1) const {
+    return df_row_range_t((column_range_t*)&active_columns, start, end, interval);
+}
+
 
 
 
 // == get ==
 
 int df_dataframe_t::get_column_count() const {
-    return columns.size();
+    return active_columns.size();
 }
 
 long df_dataframe_t::get_row_count() const {
-    return columns[0].second.get_length();
+    return active_columns[0].second->get_length();
 }
 
 
 
 
 
-df_named_column_t* df_dataframe_t::find_column(const char* name) const {
-    for (const df_named_column_t& named_column : columns) {
+std::pair<std::string, df_column_t*>* df_dataframe_t::_find_column(const char* name) const {
+    for (const std::pair<std::string, df_column_t*>& named_column : active_columns) {
         if (named_column.first.compare(name) == 0) {
-            return (df_named_column_t*)&named_column;
+            return (std::pair<std::string, df_column_t*>*)&named_column;
         }
     }
     return NULL;
@@ -137,31 +158,31 @@ df_named_column_t* df_dataframe_t::find_column(const char* name) const {
 
 
 df_column_t& df_dataframe_t::operator[](const char* name) {
-    df_named_column_t* result = find_column(name);
+    std::pair<std::string, df_column_t*>* result = _find_column(name);
     if (result == NULL) {
-        throw df_exception_out_of_index();
+        result = &active_columns.emplace_back(name, new df_column_t());
     }
-    return result->second;
+    return *result->second;
 }
 
 const df_column_t& df_dataframe_t::operator[](const char* name) const {
-    df_named_column_t* result = find_column(name);
+    std::pair<std::string, df_column_t*>* result = _find_column(name);
     if (result == NULL) {
         throw df_exception_out_of_index();
     }
-    return result->second;
+    return *result->second;
 }
 
 
 
 
 df_row_t df_dataframe_t::row(long index) {
-    return df_row_t(&columns, df_calculate_index(index, get_row_count()), 1);
+    return df_row_t(&active_columns, df_calculate_index(index, get_row_count()), 1);
 }
 
 
 df_const_row_t df_dataframe_t::row(long index) const {
-    return df_const_row_t(&columns, df_calculate_index(index, get_row_count()), 1);
+    return df_const_row_t(&active_columns, df_calculate_index(index, get_row_count()), 1);
 }
 
 
@@ -170,38 +191,32 @@ df_const_row_t df_dataframe_t::row(long index) const {
 // == add_column ==
 
 df_dataframe_t& df_dataframe_t::add_column(std::string&& name, df_column_t&& column) {
-    last_column_update = time(NULL);
-
-    df_named_column_t* result = find_column(name.c_str());
+    std::pair<std::string, df_column_t*>* result = _find_column(name.c_str());
     if (result == NULL) {
-        columns.emplace_back(std::move(name), std::move(column));
+        active_columns.emplace_back(std::move(name), new df_column_t(std::move(column)));
         return *this;
     }
-    result->second = std::move(column);
+    *result->second = std::move(column);
     return *this;
 }
 
 df_dataframe_t& df_dataframe_t::add_column(const std::string& name, df_column_t&& column) {
-    last_column_update = time(NULL);
-    
-    df_named_column_t* result = find_column(name.c_str());
+    std::pair<std::string, df_column_t*>* result = _find_column(name.c_str());
     if (result == NULL) {
-        columns.emplace_back(name, std::move(column));
+        active_columns.emplace_back(name, new df_column_t(std::move(column)));
         return *this;
     }
-    result->second = std::move(column);
+    *result->second = std::move(column);
     return *this;
 }
 
 df_dataframe_t& df_dataframe_t::add_column(const std::string& name, const df_column_t& column) {
-    last_column_update = time(NULL);
-    
-    df_named_column_t* result = find_column(name.c_str());
+    std::pair<std::string, df_column_t*>* result = _find_column(name.c_str());
     if (result == NULL) {
-        columns.emplace_back(name, column);
+        active_columns.emplace_back(name, new df_column_t(column));
         return *this;
     }
-    result->second = column;
+    result->second = new df_column_t(column);
     return *this;
 }
 
@@ -217,13 +232,7 @@ df_dataframe_t& df_dataframe_t::add_row(const df_const_row_t& source) {
 
 // == print ==
 
-std::ostream& df_dataframe_t::write_stream(std::ostream& os) const {
-    return rows().write_stream(os);
-}
-
-
-
 std::ostream& operator<<(std::ostream& os, const df_dataframe_t& df) {
-    df.write_stream(os);
+    df.rows().write_stream(os);
     return os;
 }

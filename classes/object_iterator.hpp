@@ -8,13 +8,16 @@
 class df_memory_iterator_t {
     friend class df_column_t;
 
+    friend class df_object_range_t;
+
     friend class df_row_range_t;
 protected:
     df_column_t* source = NULL;
     long index = 0;
+    long interval = 1;
 
     
-    constexpr df_memory_iterator_t(df_column_t* column, long index);
+    constexpr df_memory_iterator_t(df_column_t* column, long index, long interval = 1);
 
 public:
     inline df_memory_iterator_t& operator++();
@@ -37,7 +40,9 @@ public:
 class df_const_memory_iterator_t : public df_memory_iterator_t {
     friend class df_column_t;
 
-    constexpr df_const_memory_iterator_t(const df_column_t* column, long index);
+    friend class df_const_object_range_t;
+
+    constexpr df_const_memory_iterator_t(const df_column_t* column, long index, long interval = 1);
 public:
     inline const bool* get_null() const;
 
@@ -49,12 +54,14 @@ public:
 
 class df_object_iterator_t : public df_memory_iterator_t {
     friend class df_column_t;
+
+    friend class df_object_range_t;
 protected:
     df_object_t proxy;
 
     constexpr df_object_iterator_t(long index);
 
-    inline df_object_iterator_t(df_column_t* column, long index);
+    inline df_object_iterator_t(df_column_t* column, long index, long interval = 1);
 public:
 
     inline df_object_t& operator*();
@@ -63,8 +70,10 @@ public:
 
 class df_const_object_iterator_t : public df_object_iterator_t {
     friend class df_column_t;
+    
+    friend class df_const_object_range_t;
 
-    inline df_const_object_iterator_t(const df_column_t* column, long index);
+    inline df_const_object_iterator_t(const df_column_t* column, long index, long interval = 1);
 
 public:
     constexpr df_const_object_iterator_t(long index);

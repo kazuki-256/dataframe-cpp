@@ -2,7 +2,7 @@
 
 #include "../config.hpp"
 #include "object.hpp"
-#include "range_objects.hpp"
+#include "object_range.hpp"
 
 #include <list>
 #include <set>
@@ -22,7 +22,33 @@ class df_column_t {
 
     friend class df_row_range_t;
     friend class df_const_row_range_t;
+    friend class df_object_range_t;
 protected:
+    struct mutex_t {
+        long start = 0, end = -1;
+        bool is_using = false;
+        bool is_write = false;
+    };
+
+    class shared_lock_t {
+        mutex_t* _mutex = NULL;
+    public:
+        ~shared_lock_t();
+
+        shared_lock_t();
+        shared_lock_t(std::list<mutex_t>& mutexs);
+    };
+
+    class unique_lock_t {
+        mutex_t* _mutex = NULL;
+    public:
+        ~unique_lock_t();
+
+        unique_lock_t();
+        unique_lock_t(std::list<mutex_t>& mutexs);
+    };
+
+
     df_type_t data_type = DF_TYPE_UINT8;
     int size_per_data = 1;
     df_value_init_callback_t type_initer;
@@ -35,22 +61,21 @@ protected:
     long capacity = 0;
 
 
-    std::string meta;
-    
-    short reading_count = 0;
-    short writing_count = 0;
+    std::string label = "";
 
     bool can_read = true;
     bool can_write = true;
+
+    mutable std::list<mutex_t> mutexs;
 
 
 
     // == private make ==
     
-    inline void basic_init(df_type_t data_type, long length, long start_capacity);
+    inline void _init(df_type_t data_type, long length, long start_capacity);
     
     template<typename T>
-    inline void typed_init_no_init(df_type_t data_type, const std::initializer_list<T>& sources);
+    inline void _init_typed_value(df_type_t data_type, const std::initializer_list<T>& sources);
 
 
     df_column_t();
@@ -67,41 +92,40 @@ protected:
 
     // for initial_list<T> or vector<T>
     // ! no length checking
-    template<typename T> inline df_column_t& basic_extend_values(T& objects);
+    template<typename T> inline df_column_t& _extend_values(T& objects);
 
 
     // for df_column_t
     // ! no length checking
-    inline void basic_extend_column(const df_column_t& src);
+    inline void _extend_column(const df_column_t& src);
+
+
+    // == delay system ==
+
+    mutex_t* _get_shared_mutex(long start, long end) {
+        mutex_t* reuse_ptr = NULL;
+        for (auto& mutex : mutexs) {
+            if (mutex.is_using) {
+                reuse_ptr = &mutex;
+                continue;
+            }
+
+            if (!(end < mutex.start || start > mutex.end)) {
+                mutex.start = DF_MIN(mutex.start, start);
+                mutex.end = DF_MAX(mutex.end, end);
+                return &mutex;
+            }
+        }
+        if (reuse_ptr) {
+            reuse_ptr->start = start;
+            reuse_ptr->end = end;
+            return reuse_ptr;
+        }
+        return &mutexs.emplace_back(start, end, false, false);
+    }
 
 
 public:
-    // == iterator ==
-
-    df_memory_iterator_t memory_begin();
-
-    df_memory_iterator_t memory_end();
-
-    df_const_memory_iterator_t memory_begin() const;
-
-    df_const_memory_iterator_t memory_end() const;
-
-
-    df_object_iterator_t begin();
-
-    df_object_iterator_t end();
-
-    df_const_object_iterator_t begin() const;
-
-    df_const_object_iterator_t end() const;
-
-
-
-    df_range_objects_t operator()(long start, long end, long interval);
-    df_range_objects_t operator()(long start, long end, long interval) const;
-
-
-
     // == destroy ==
 
     ~df_column_t();
@@ -116,7 +140,7 @@ public:
 
     df_column_t(const std::initializer_list<df_object_t>& objects);
 
-    df_column_t(const df_range_objects_t& range);
+    df_column_t(const df_object_range_t& range);
 
 
 
@@ -135,6 +159,51 @@ public:
 
 
 
+    // == iterator ==
+
+    df_memory_iterator_t memory_begin();
+
+    df_memory_iterator_t memory_end();
+
+    df_object_iterator_t begin();
+
+    df_object_iterator_t end();
+
+
+    df_const_memory_iterator_t memory_begin() const;
+
+    df_const_memory_iterator_t memory_end() const;
+
+
+    df_const_object_iterator_t begin() const;
+
+    df_const_object_iterator_t end() const;
+
+
+
+    // == range ==
+
+    df_object_range_t range(long start = 0, long end = -1, long interval = 1);
+    
+    const df_object_range_t range(long start = 0, long end = -1, long interval = 1) const;
+
+
+
+
+    // == check state ==
+
+    bool is_delaying_read() const;
+
+    bool is_delaying_write() const;
+
+
+    bool is_readable() const;
+
+    bool is_writable() const;
+
+    bool is_deletable() const;
+
+
     // == get ==
 
     inline df_type_t get_data_type() const;
@@ -150,6 +219,8 @@ public:
 
 
     // == set ==
+
+    df_column_t& set_label(const char* label);
 
     // df_column_t& set_foregin(df_column_t& column);       // wait for make
 
@@ -170,6 +241,8 @@ public:
     df_column_t& extend(const std::vector<df_object_t>& objects);
 
     df_column_t& extend(const df_column_t& objects);
+
+    df_column_t& extend(const df_object_range_t& objects);
 
     
     
@@ -233,17 +306,6 @@ public:
     df_query_t operator%(long num) const;
     df_query_t operator%(double num) const;
 };
-
-
-
-
-
-
-
-// == named_column_t ==
-
-std::ostream& operator<<(std::ostream& os, const df_named_column_t& named_column);
-
 
 
 

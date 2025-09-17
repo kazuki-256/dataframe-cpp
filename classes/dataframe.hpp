@@ -3,6 +3,7 @@
 #include "../config.hpp"
 #include "column.hpp"
 #include "row_range.hpp"
+#include "column_range.hpp"
 
 
 
@@ -11,15 +12,17 @@
 
 class df_dataframe_t {
     friend class df_row_range_t;
-    friend class df_const_row_range_t;
+
+    using column_range_t = std::vector<std::pair<std::string, df_column_t*>>;
 
 
-    std::vector<df_named_column_t> columns;
-    
-    // == statistics ==
-    df_date_t last_column_update;
+    column_range_t active_columns;      // uniqure_ptr<df_column_t>
+    std::vector<df_column_t*> dropped_columns;      // uniqure_ptr<df_column_t>
 
-    df_named_column_t* find_column(const char* name) const;
+
+    std::pair<std::string, df_column_t*>* _find_column(const char* name) const;
+
+    void _drop_column(df_column_t* column);
 
 
 public:
@@ -28,9 +31,9 @@ public:
 
     df_dataframe_t();
 
-    df_dataframe_t(const std::initializer_list<df_named_column_t>& source_columns);
+    df_dataframe_t(const std::initializer_list<std::pair<std::string, df_column_t>>& source_columns);
 
-    // df_dataframe_t(std::initializer_list<df_named_column_t>&& source_columns);
+    // df_dataframe_t(std::initializer_list<std::pair<std::string, df_column_t>>&& source_columns);
 
 
     // == copy ==
@@ -56,19 +59,51 @@ public:
 
 
 
+    bool has_column(const char* name) const;
+
+
+    // get single column
+
     df_column_t& operator[](const char* name);
+
+    df_column_t& column(const char* name);
+
 
     const df_column_t& operator[](const char* name) const;
 
+    const df_column_t column(const char* name) const;
+
+
+    // get multi column
+
+    df_column_range_t columns(const char* start, const char* end);
+
+    df_column_range_t columns(std::vector<const char*> names);
+
+
+    df_const_column_range_t columns(const char* start, const char* end) const;
+
+    df_const_column_range_t columns(std::vector<const char*> name) const;
+
+
+
+    // get single row
 
     df_row_t row(long index);
 
     df_const_row_t row(long index) const;
 
 
+    // get multi row
 
-    // == add ==
+    df_row_range_t rows(long start, long end, long interval);
 
+    const df_row_range_t rows(long start, long end, long interval) const;
+
+
+    // == set ==
+
+    // plan relace to df["name"] = column or df.column("name") = column
     df_dataframe_t& add_column(std::string&& name, df_column_t&& column);
 
     df_dataframe_t& add_column(const std::string& name, df_column_t&& column);
@@ -77,35 +112,38 @@ public:
 
 
 
+
+    // plan replace to df.row(-1) = source
     df_dataframe_t& add_row(const df_const_row_t& source);
 
     df_dataframe_t& add_row(const std::vector<df_object_t>& row);
 
-    df_dataframe_t& add_row(const std::initializer_list<df_object_t>& row);
 
+    // == drop ==
+
+    void drop_column(const char* column_name);
+
+    void remove_index(long index);
+
+
+    void clear_columns();
+
+    void clear_rows();
 
 
     // == iterator ==
 
-    std::vector<df_named_column_t>::iterator begin();
+    std::vector<std::pair<std::string, df_column_t*>>::iterator begin();
 
-    std::vector<df_named_column_t>::iterator end();
+    std::vector<std::pair<std::string, df_column_t*>>::iterator end();
 
-    std::vector<df_named_column_t>::const_iterator begin() const;
+    std::vector<std::pair<std::string, df_column_t*>>::const_iterator begin() const;
 
-    std::vector<df_named_column_t>::const_iterator end() const;
-
-
-
-    df_row_range_t rows(long start, long end, long interval);
-
-    df_const_row_range_t rows(long start, long end, long interval) const;
+    std::vector<std::pair<std::string, df_column_t*>>::const_iterator end() const;
 
 
 
     // == print ==
-
-    std::ostream& write_stream(std::ostream& os) const;
 
     friend std::ostream& operator<<(std::ostream& os, const df_dataframe_t& df);
 
@@ -149,12 +187,12 @@ public:
 
     // == read/write ==
 
-    friend df_column_t df_read_csv(const char* file);
-    friend df_column_t df_read_xlsx(const char* file, const char* sheet_name);
-    friend df_column_t df_read_html(const char* file);
-    friend df_column_t df_read_db();
-    friend df_column_t df_read_json(const char* file);
-    friend df_column_t df_read_markdown(const char* file);
+    friend df_dataframe_t df_read_csv(const char* file);
+    friend df_dataframe_t df_read_xlsx(const char* file, const char* sheet_name);
+    friend df_dataframe_t df_read_html(const char* file);
+    friend df_dataframe_t df_read_db();
+    friend df_dataframe_t df_read_json(const char* file);
+    friend df_dataframe_t df_read_markdown(const char* file);
 
     int write_csv(const char* file) const;
     int write_xlsx(const char* file, const char* sheet_name) const;

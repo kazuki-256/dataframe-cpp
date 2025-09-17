@@ -18,7 +18,7 @@ df_row_t::~df_row_t() {
 
 // == make ==
 
-df_row_t::df_row_t(std::vector<df_named_column_t>* columns, long index, long interval) {
+df_row_t::df_row_t(source_t* columns, long index, long interval) {
     const int COLUMN_LENGTH = columns->size();
 
     source = columns;
@@ -31,6 +31,7 @@ df_row_t::df_row_t(std::vector<df_named_column_t>* columns, long index, long int
 
     current = index;
     this->interval = interval;
+    ordered = false;
 }
 
 
@@ -39,7 +40,7 @@ constexpr df_row_t::df_row_t(long index) : current(index) {}
 
 // == get ==
 
-int df_row_t::get_length() const {
+int df_row_t::get_column_count() const {
     return source->size();
 }
 
@@ -49,7 +50,18 @@ df_row_t& df_row_t::operator*() {
 
 
 
-inline df_object_t& df_row_t::basic_at(const char* name, df_row_t::object_info_t*& info) {
+inline df_row_t::object_info_t* df_row_t::_add_object_cashe(std::pair<std::string, df_column_t*>& pair) const {
+    object_info_t* ptr = object_end++;
+    ptr->name = &pair.first;
+    ptr->column = pair.second;
+
+    ptr->object.target_type = pair.second->data_type;
+    ptr->object.lock_state = true;
+    return ptr;
+}
+
+
+inline df_object_t& df_row_t::_at(const char* name, df_row_t::object_info_t*& info) const {
     // == from object_info list ==
 
     // == from created object list ==
@@ -61,20 +73,14 @@ inline df_object_t& df_row_t::basic_at(const char* name, df_row_t::object_info_t
 
     // == match from source ==
     
-    for (df_named_column_t& column : *source) {
+    for (auto& pair : *source) {
         // filter not matching
-        if (column.first.compare(name) != 0) {
+        if (pair.first.compare(name) != 0) {
             continue;
         }
 
         // make info
-        info->name = &column.first;
-        info->column = (df_column_t*)&column.second;
-
-        info->object.target_type = column.second.data_type;
-        info->object.lock_state = true;
-        object_end++;
-
+        info = _add_object_cashe(pair);
         goto label_get_data;
     }
 
@@ -90,13 +96,13 @@ label_get_data:
 
 
 // operator[]() without pointer compare
-df_object_t& df_row_t::at(const char* name) {
+df_object_t& df_row_t::at(const char* name) const {
     object_info_t* info;
-    return basic_at(name, info);
+    return _at(name, info);
 }
 
 
-df_object_t& df_row_t::operator[](const char* name) {
+df_object_t& df_row_t::operator[](const char* name) const {
     // == from matched cashe ==
 
     matched_info_t* match_info;
@@ -116,7 +122,7 @@ df_object_t& df_row_t::operator[](const char* name) {
     }
 
     // == from object_info or source ==
-    df_object_t& result = basic_at(name, object_info);
+    df_object_t& result = _at(name, object_info);
 
     if (match_info >= matched_end) {
         int capacity = matched_end - matched_start;
@@ -145,7 +151,7 @@ df_row_t& df_row_t::operator++() {
 }
 
 
-bool df_row_t::operator!=(const df_row_t& other) {
+bool df_row_t::operator!=(const df_row_t& other) const {
     return current != other.current;
 }
 
@@ -192,31 +198,25 @@ public:
 };
 
 
-df_row_t::iterator_t df_row_t::begin() {
+df_row_t::iterator_t df_row_t::begin() const {
     // == fill object_info_t ==
-    if (object_start + source->size() != object_end) {
-        object_info_t* ptr = object_start;
+    if (ordered == false) {
+        ordered = true;
 
-        for (df_named_column_t& column : *source) {
-            ptr->name = &column.first;
-            ptr->column = (df_column_t*)&column.second;
-
-            ptr->object.target_type = column.second.data_type;
-            ptr->object.lock_state = true;
-            ptr++;
+        object_end = object_start;
+        for (auto& pair : *source) {
+            _add_object_cashe(pair);
         }
-        object_end = ptr;
-        df_debug7("test %p %p", object_start, object_end);
 
+        memset(matched_start, 0, (long)matched_end - (long)matched_start);
         matched_end = matched_start;
-        matched_start->address = NULL;
     }
 
     // == make iterator ==
     return iterator_t(object_start, current);
 }
 
-df_row_t::iterator_t df_row_t::end() {
+df_row_t::iterator_t df_row_t::end() const {
     return iterator_t(object_end, 0);
 }
     
@@ -224,8 +224,7 @@ df_row_t::iterator_t df_row_t::end() {
 
 // == write ==
 
-std::ostream& df_row_t::write_stream(std::ostream& os) {
-    df_debug7("");
+std::ostream& df_row_t::write_stream(std::ostream& os) const {
     iterator_t iter = begin();
 
     os << "| ";
@@ -245,8 +244,7 @@ std::ostream& df_row_t::write_stream(std::ostream& os) {
 
 
 std::ostream& operator<<(std::ostream& os, const df_row_t& row) {
-    df_debug7("");
-    return ((df_row_t&)row).write_stream(os);
+    return row.write_stream(os);
 }
 
 
@@ -259,9 +257,9 @@ std::ostream& operator<<(std::ostream& os, const df_row_t& row) {
 // == make ==
 
 df_const_row_t::df_const_row_t(
-    const std::vector<df_named_column_t>* columns,
+    const_source_t* columns,
     long index, long interval
-) : df_row_t((std::vector<df_named_column_t>*)columns, index, interval) {}
+) : df_row_t((source_t*)columns, index, interval) {}
 
 
 constexpr df_const_row_t::df_const_row_t(long index) : df_row_t(index) {}
@@ -269,14 +267,14 @@ constexpr df_const_row_t::df_const_row_t(long index) : df_row_t(index) {}
 
 // == other ==
 
-const df_object_t& df_const_row_t::operator[](const char* name) {
+const df_object_t& df_const_row_t::operator[](const char* name) const {
     return df_row_t::operator[](name);
 }
 
 
 
 std::ostream& operator<<(std::ostream& os, const df_const_row_t& row) {
-    return ((df_row_t&)row).write_stream(os);
+    return row.write_stream(os);
 }
 
 

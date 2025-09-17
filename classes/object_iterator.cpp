@@ -8,8 +8,8 @@
 
 // == make ==
 
-constexpr df_memory_iterator_t::df_memory_iterator_t(df_column_t* column, long index)
-    : source(column), index(index) {}
+constexpr df_memory_iterator_t::df_memory_iterator_t(df_column_t* column, long index, long interval)
+: source(column), index(index), interval(interval) {}
 
 
 // == add ==
@@ -54,8 +54,8 @@ inline uint8_t* df_memory_iterator_t::get_value() const {
 
 // == make ==
 
-constexpr df_const_memory_iterator_t::df_const_memory_iterator_t(const df_column_t* column, long index)
-: df_memory_iterator_t((df_column_t*)column, index) {}
+constexpr df_const_memory_iterator_t::df_const_memory_iterator_t(const df_column_t* column, long index, long interval)
+: df_memory_iterator_t((df_column_t*)column, index, interval) {}
 
 
 // == get ==
@@ -75,10 +75,10 @@ inline const uint8_t* df_const_memory_iterator_t::get_value() const {
 // == make ==
 
 constexpr df_object_iterator_t::df_object_iterator_t(long index)
-: df_memory_iterator_t(NULL, index) {}
+: df_memory_iterator_t(NULL, index, 1) {}
 
 
-inline df_object_iterator_t::df_object_iterator_t(df_column_t* column, long index) : df_memory_iterator_t(column, index) {
+inline df_object_iterator_t::df_object_iterator_t(df_column_t* column, long index, long interval) : df_memory_iterator_t(column, index, interval) {
     proxy.target_type = column->data_type;
     proxy.lock_state = true;
 }
@@ -100,8 +100,8 @@ constexpr df_const_object_iterator_t::df_const_object_iterator_t(long index)
 : df_object_iterator_t(index) {}
 
 
-inline df_const_object_iterator_t::df_const_object_iterator_t(const df_column_t* column, long index)
-: df_object_iterator_t((df_column_t*)column, index) {}
+inline df_const_object_iterator_t::df_const_object_iterator_t(const df_column_t* column, long index, long interval)
+: df_object_iterator_t((df_column_t*)column, index, interval) {}
 
 
 // == get ==

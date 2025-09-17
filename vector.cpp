@@ -21,7 +21,7 @@ df_column_t df_range_int32(int start, int end, int interval = 1) {
     }
 
     df_column_t column;
-    column.basic_init(DF_TYPE_INT32, length, length);
+    column._init(DF_TYPE_INT32, length, length);
 
     df_memory_iterator_t iter = column.memory_begin();
 
@@ -47,7 +47,7 @@ df_column_t df_range_int64(long start, long end, long interval = 1) {
     }
 
     df_column_t column;
-    column.basic_init(DF_TYPE_INT64, length, length);
+    column._init(DF_TYPE_INT64, length, length);
 
     df_memory_iterator_t iter = column.memory_begin();
 
@@ -74,7 +74,7 @@ df_column_t df_range_datetime(df_date_t start, df_date_t end, df_interval_t inte
     }
 
     df_column_t column;
-    column.basic_init(DF_TYPE_DATETIME, 0, predicted_length);
+    column._init(DF_TYPE_DATETIME, 0, predicted_length);
 
     df_memory_iterator_t iter = column.memory_begin();
 

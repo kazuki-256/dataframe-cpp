@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
            .select("job.job_title, AVG(staff.worked * job.hourly), count")
            .join(job, "job", "staff.job_id == job.id")
            .group_by("job.title")                             // group by job.title
-           .mutate("COUNT(*) AS count");                      // also, you can define variables by mutate
+           .variable("COUNT(*) AS count");                      // also, you can define variables by variable
 
   // == vector processing ==
   df_column_t yearly = df1["salary"] * 12;
@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
 		{"index", df_range_int32(1, 6)},	// INT32[5] of {1, 2, 3, 4, 5}
 		{"date", df_range_date("2000-1-1", "2025-1-1", "1 years")},	// DATE[5] of {2000-01-01 00:00, ...}
 		{"text", df_column_text_t{"kazuki", "dataframe", "c++", "minecraft", "hello world"}},	// typed-column, having faster construct
-		{"pi", {3b, 314, "3.14", 3.1415f, 3.1415}}	// default consturct able to use any type if able to convert, and typed by first object type
+		{"pi", {3.14, 314, "3.14", 3.1415f, 3.1415}}	// default consturct able to use any type if able to convert, and typed by first object type
 	};
 
 	// print dataframe
@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
 	}
 
 	// get row at 4
-	df.loc(4)["date"] << "2025-09-10 12:00";	// set ["date"][4] as 2025-09-10 12:00 (auto convert to its type: DATE);
+	df.row(4)["date"] << "2025-09-10 12:00";	// set ["date"][4] as 2025-09-10 12:00 (auto convert to its type: DATE);
 
 	// print dataframe again
 	std::cout << df << "\n";

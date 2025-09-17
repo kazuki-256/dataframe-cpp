@@ -26,24 +26,29 @@ protected:
         object_info_t* object_info;
     };
 
-    std::vector<df_named_column_t>* source = NULL;
+    typedef std::vector<std::pair<std::string, df_column_t*>> source_t;
 
-    matched_info_t* matched_start = NULL;   // base size: (COLUMN_LENGTH * 2 + 1), realloc every p >= match_end
-    matched_info_t* matched_end = NULL;     // at match_start + match_length
+    source_t* source = NULL;
 
-    object_info_t* object_start = NULL;     // size: COLUMN_LENGTH
-    object_info_t* object_end = NULL;       // always start + length, ordered if (uint8_t)(start + length) - 1
+    mutable matched_info_t* matched_start = NULL;   // base size: (COLUMN_LENGTH * 2 + 1), realloc every p >= match_end
+    mutable matched_info_t* matched_end = NULL;     // at match_start + match_length
+
+    mutable object_info_t* object_start = NULL;     // size: COLUMN_LENGTH
+    mutable object_info_t* object_end = NULL;       // always start + length, ordered if (uint8_t)(start + length) - 1
 
     long current = 0;
     long interval = 0;
+    mutable bool ordered = false;
 
 
-    df_row_t(std::vector<df_named_column_t>* columns, long index, long interval);
+    df_row_t(source_t* columns, long index, long interval);
 
     constexpr df_row_t(long index);
 
 
-    inline df_object_t& basic_at(const char* name, object_info_t*& info);
+    inline object_info_t* _add_object_cashe(std::pair<std::string, df_column_t*>& pair) const;
+
+    inline df_object_t& _at(const char* name, object_info_t*& info) const;
 
 public:
     // == destroy ==
@@ -52,36 +57,36 @@ public:
 
     // == get ==
 
-    int get_length() const;
+    int get_column_count() const;
 
 
 
     df_row_t& operator*();
 
 
-    df_object_t& at(const char* name);
+    df_object_t& at(const char* name) const;
 
-    df_object_t& operator[](const char* name);
+    df_object_t& operator[](const char* name) const;
 
     // == other ==
 
     df_row_t& operator++();
 
-    bool operator!=(const df_row_t& other);
+    bool operator!=(const df_row_t& other) const;
 
     
     // == iterator ==
     
     class iterator_t;
 
-    iterator_t begin();
+    iterator_t begin() const;
     
-    iterator_t end();
+    iterator_t end() const;
 
 
     // == write_stream ==
     
-    std::ostream& write_stream(std::ostream& os);
+    std::ostream& write_stream(std::ostream& os) const;
 
     friend std::ostream& operator<<(std::ostream& os, const df_row_t& row);
 };
@@ -94,11 +99,13 @@ class df_const_row_t : public df_row_t {
     friend class df_dataframe_t;
     friend class df_const_row_range_t;
 
-    df_const_row_t(const std::vector<df_named_column_t>* columns, long index, long interval);
+    typedef const std::vector<std::pair<std::string, df_column_t*>> const_source_t;
+
+    df_const_row_t(const_source_t* columns, long index, long interval);
 
     constexpr df_const_row_t(long index);
 public:
-    const df_object_t& operator[](const char* name);
+    const df_object_t& operator[](const char* name) const;
     
     
     // == write_stream ==

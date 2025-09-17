@@ -4,53 +4,12 @@
 #include "column.hpp"
 #include "object.cpp"
 #include "object_iterator.cpp"
+#include "object_range.cpp"
 
 
 
 
 // ==== df_column_t ====
-
-df_memory_iterator_t df_column_t::memory_begin() {
-    return df_memory_iterator_t(this, 0);
-}
-
-df_memory_iterator_t df_column_t::memory_end() {
-    return df_memory_iterator_t(NULL, length);
-}
-
-
-
-df_const_memory_iterator_t df_column_t::memory_begin() const {
-    return df_const_memory_iterator_t(this, 0);
-}
-
-df_const_memory_iterator_t df_column_t::memory_end() const {
-    return df_const_memory_iterator_t(NULL, length);
-}
-
-
-
-df_object_iterator_t df_column_t::begin() {
-    return df_object_iterator_t(this, 0);
-}
-
-df_object_iterator_t df_column_t::end() {
-    return df_object_iterator_t(length);
-}
-
-
-
-df_const_object_iterator_t df_column_t::begin() const {
-    return df_const_object_iterator_t(this, 0);
-}
-
-df_const_object_iterator_t df_column_t::end() const {
-    return df_const_object_iterator_t(length);
-}
-
-
-
-
 
 // == destroy ==
 
@@ -62,6 +21,10 @@ inline void df_column_t::destroy() noexcept {
     if (values != NULL) {
         free(values);
     }
+    
+    if (!is_deletable()) {
+        fprintf(stderr, "warning! deleted reading/writing df_column_t, you should check column.is_deletable() before\n");
+    }
 }
 
 
@@ -72,7 +35,7 @@ df_column_t::~df_column_t() {
 
 // == make ==
 
-inline void df_column_t::basic_init(df_type_t _data_type, long _length, long _capacity) {
+inline void df_column_t::_init(df_type_t _data_type, long _length, long _capacity) {
     data_type = _data_type;
     size_per_data = df_type_get_size(_data_type);
 
@@ -88,13 +51,19 @@ inline void df_column_t::basic_init(df_type_t _data_type, long _length, long _ca
     if (nulls == NULL || values == NULL) {
         throw df_exception_not_enough_memory();
     }
+
+    label = "";
+    
+    reading_count = writing_count = 0;
+
+    can_read = can_write = true;
 }
 
 
 template<typename T>
-inline void df_column_t::typed_init_no_init(df_type_t data_type, const std::initializer_list<T>& sources) {
+inline void df_column_t::_init_typed_value(df_type_t data_type, const std::initializer_list<T>& sources) {
     df_debug3("typed-make %s[0] at %p", df_type_get_string(data_type), this);
-    basic_init(data_type, sources.size(), sources.size());
+    _init(data_type, sources.size(), sources.size());
 
     df_memory_iterator_t iter = memory_begin();
 
@@ -113,14 +82,14 @@ df_column_t::df_column_t() {}
 
 df_column_t::df_column_t(df_type_t data_type, long start_capacity) {
     df_debug3("make1 %s[0] at %p", df_type_get_string(data_type), this);
-    basic_init(data_type, 0, start_capacity);
+    _init(data_type, 0, start_capacity);
 }
 
 
 df_column_t::df_column_t(const std::initializer_list<df_object_t>& objects) {
     df_debug3("make2 %s[%ld] at %p", df_type_get_string(data_type), objects.size(), this);
-    basic_init(objects.begin()->target_type, 0, objects.size());
-    basic_extend_values(objects);
+    _init(objects.begin()->target_type, 0, objects.size());
+    _extend_values(objects);
 }
 
 
@@ -130,8 +99,8 @@ df_column_t::df_column_t(const std::initializer_list<df_object_t>& objects) {
 
 df_column_t::df_column_t(const df_column_t& src) noexcept {
     df_debug3("copy1 %s[%ld] column from %p to %p", df_type_get_string(src.data_type), src.get_length(), &src, this);
-    basic_init(src.data_type, 0, src.length);
-    basic_extend_column(src);
+    _init(src.data_type, 0, src.length);
+    _extend_column(src);
 }
 
 
@@ -142,8 +111,8 @@ df_column_t& df_column_t::df_column_t::operator=(const df_column_t& src) noexcep
     }
     
     destroy();
-    basic_init(src.data_type, 0, src.length);
-    basic_extend_column(src);
+    _init(src.data_type, 0, src.length);
+    _extend_column(src);
     return *this;
 }
 
@@ -184,6 +153,72 @@ df_column_t& df_column_t::operator=(df_column_t&& src) noexcept {
     destroy();
     move(src);
     return *this;
+}
+
+
+
+
+// == iterator ==
+
+df_memory_iterator_t df_column_t::memory_begin() {
+    return df_memory_iterator_t(this, 0);
+}
+
+df_memory_iterator_t df_column_t::memory_end() {
+    return df_memory_iterator_t(NULL, length);
+}
+
+
+
+df_object_iterator_t df_column_t::begin() {
+    return df_object_iterator_t(this, 0);
+}
+
+df_object_iterator_t df_column_t::end() {
+    return df_object_iterator_t(length);
+}
+
+
+
+df_const_memory_iterator_t df_column_t::memory_begin() const {
+    return df_const_memory_iterator_t(this, 0);
+}
+
+df_const_memory_iterator_t df_column_t::memory_end() const {
+    return df_const_memory_iterator_t(NULL, length);
+}
+
+
+
+df_const_object_iterator_t df_column_t::begin() const {
+    return df_const_object_iterator_t(this, 0);
+}
+
+df_const_object_iterator_t df_column_t::end() const {
+    return df_const_object_iterator_t(length);
+}
+
+
+
+
+// == range ==
+
+df_object_range_t df_column_t::range(long start, long end, long interval) {
+    return df_object_range_t(this, start, end, interval);
+}
+
+const df_object_range_t df_column_t::range(long start, long end, long interval) const {
+    return df_object_range_t((df_column_t*)this, start, end, interval);
+}
+
+
+
+
+
+// == check state ==
+
+bool df_column_t::is_deletable() const {
+    return reading_count == 0 && writing_count == 0;
 }
 
 
@@ -258,7 +293,7 @@ int df_column_t::reserve(const long n) {
 
 
 // basic extend for initial_list<> or vector<>
-template<typename T> inline df_column_t& df_column_t::basic_extend_values(T& objects) {
+template<typename T> inline df_column_t& df_column_t::_extend_values(T& objects) {
     df_value_init_callback_t initer = df_value_get_init_callback(data_type);
     df_value_write_callback_t writer = df_value_get_write_callback(data_type, data_type);
 
@@ -291,7 +326,6 @@ template<typename T> inline df_column_t& df_column_t::basic_extend_values(T& obj
             object.target_preload, object.target_type,
             dest.get_value(), data_type
         );
-        df_debug7("value: %lf", *(double*)dest.get_value());
         dest++;
     }
 
@@ -300,7 +334,7 @@ template<typename T> inline df_column_t& df_column_t::basic_extend_values(T& obj
 
 
 
-inline void df_column_t::basic_extend_column(const df_column_t& other) {
+inline void df_column_t::_extend_column(const df_column_t& other) {
     df_value_write_callback_t writer = df_value_get_write_callback(other.data_type, data_type);
 
     df_const_memory_iterator_t src = other.memory_begin();
@@ -356,7 +390,7 @@ df_column_t& df_column_t::extend(const std::initializer_list<df_object_t>& objec
     if (reserve(objects.size()) < 0) {
         throw df_exception_not_enough_memory();
     }
-    return basic_extend_values(objects);
+    return _extend_values(objects);
 }
 
 
@@ -364,7 +398,7 @@ df_column_t& df_column_t::extend(const std::vector<df_object_t>& objects) {
     if (reserve(objects.size()) < 0) {
         throw df_exception_not_enough_memory();
     }
-    return basic_extend_values(objects);
+    return _extend_values(objects);
 }
 
 
@@ -372,7 +406,7 @@ df_column_t& df_column_t::extend(const df_column_t& other) {
     if (reserve(other.length) < 0) {
         throw df_exception_not_enough_memory();
     }
-    basic_extend_column(other);
+    _extend_column(other);
     return *this;
 }
 
@@ -430,47 +464,39 @@ std::ostream& operator<<(std::ostream& os, const df_column_t& column) {
 
 
 
-// ==== named_column_t ====
-
-std::ostream& operator<<(std::ostream& os, const df_named_column_t& named_column) {
-    return named_column.second.write_stream(os, named_column.first.c_str());
-}
-
-
-
 // ==== typed_column_t ====
 
 df_column_uint8_t::df_column_uint8_t(const std::initializer_list<uint8_t>& sources) {
-    typed_init_no_init(DF_TYPE_UINT8, sources);
+    _init_typed_value(DF_TYPE_UINT8, sources);
 }
 
 df_column_int16_t::df_column_int16_t(const std::initializer_list<short>& sources) {
-    typed_init_no_init(DF_TYPE_INT16, sources);
+    _init_typed_value(DF_TYPE_INT16, sources);
 }
 
 df_column_int32_t::df_column_int32_t(const std::initializer_list<int>& sources) {
-    typed_init_no_init(DF_TYPE_INT32, sources);
+    _init_typed_value(DF_TYPE_INT32, sources);
 }
 
 df_column_int64_t::df_column_int64_t(const std::initializer_list<long>& sources) {
-    typed_init_no_init(DF_TYPE_INT64, sources);
+    _init_typed_value(DF_TYPE_INT64, sources);
 }
 
 
 
 df_column_float32_t::df_column_float32_t(const std::initializer_list<float>& sources) {
-    typed_init_no_init(DF_TYPE_FLOAT32, sources);
+    _init_typed_value(DF_TYPE_FLOAT32, sources);
 }
 
 df_column_float64_t::df_column_float64_t(const std::initializer_list<double>& sources) {
-    typed_init_no_init(DF_TYPE_FLOAT64, sources);
+    _init_typed_value(DF_TYPE_FLOAT64, sources);
 }
 
 
 
 df_column_text_t::df_column_text_t(const std::initializer_list<const char*>& sources) {
     df_debug3("typed-make %s[0] at %p", df_type_get_string(DF_TYPE_TEXT), this);
-    basic_init(DF_TYPE_TEXT, sources.size(), sources.size());
+    _init(DF_TYPE_TEXT, sources.size(), sources.size());
 
     df_memory_iterator_t iter = memory_begin();
 
@@ -483,7 +509,7 @@ df_column_text_t::df_column_text_t(const std::initializer_list<const char*>& sou
 
 df_column_text_t::df_column_text_t(const std::initializer_list<std::string>& sources) {
     df_debug3("typed-make %s[0] at %p", df_type_get_string(DF_TYPE_TEXT), this);
-    basic_init(DF_TYPE_TEXT, sources.size(), sources.size());
+    _init(DF_TYPE_TEXT, sources.size(), sources.size());
 
     df_memory_iterator_t iter = memory_begin();
 
@@ -497,12 +523,12 @@ df_column_text_t::df_column_text_t(const std::initializer_list<std::string>& sou
 
 
 df_column_date_t::df_column_date_t(const std::initializer_list<df_date_t>& sources) {
-    typed_init_no_init(DF_TYPE_DATE, sources);
+    _init_typed_value(DF_TYPE_DATE, sources);
 }
 
 df_column_time_t::df_column_time_t(const std::initializer_list<const char*>& sources) {
     df_debug3("typed-make %s[0] at %p", df_type_get_string(DF_TYPE_TIME), this);
-    basic_init(DF_TYPE_TIME, sources.size(), sources.size());
+    _init(DF_TYPE_TIME, sources.size(), sources.size());
 
     df_memory_iterator_t iter = memory_begin();
 
@@ -514,7 +540,7 @@ df_column_time_t::df_column_time_t(const std::initializer_list<const char*>& sou
 }
 
 df_column_datetime_t::df_column_datetime_t(const std::initializer_list<df_date_t>& sources) {
-    typed_init_no_init(DF_TYPE_INT64, sources);
+    _init_typed_value(DF_TYPE_INT64, sources);
 }
 
 

@@ -24,15 +24,11 @@ const char DF_VERSION[] = "beta 1.0.0";
 // == main classes ==
 
 class df_object_t;
-
 class df_row_t;
 class df_const_row_t;
 
 class df_column_t;
-using df_named_column_t = std::pair<std::string, df_column_t>;
-
 class df_dataframe_t;
-
 class df_query_t;
 
 
