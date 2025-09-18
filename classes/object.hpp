@@ -107,7 +107,7 @@ public:
 
 
 
-    // == set ==
+    // == set as variant ==
 
     template<typename T> df_object_t& operator=(const T src);
 
@@ -122,6 +122,7 @@ public:
 
 
 
+    // == type converting write ==
 
     df_object_t& operator<<(const char* src);
 
