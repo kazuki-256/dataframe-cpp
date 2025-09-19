@@ -106,7 +106,7 @@ public:
 
 
 
-    // == set ==
+    // == set as variant ==
 
     void lock();
 
@@ -125,6 +125,7 @@ public:
 
 
 
+    // == type converting write ==
 
     df_object_t& operator<<(const char* src);
 
