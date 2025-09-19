@@ -1,6 +1,7 @@
 #pragma once
 
 #include "object.hpp"
+#include "object_iterator.hpp"
 #include <list>
 
 
@@ -32,11 +33,11 @@ protected:
         unique_lock_t(std::list<mutex_t>& mutexs);
     };
 
-    struct content_t {
+    struct _column_t {
         df_type_t data_type = DF_TYPE_UINT8;
         int size_per_data = 1;
-        df_value_init_callback_t type_initer;
-        df_value_load_callback_t type_loader;
+        df_value_init_callback_t type_initer = NULL;
+        df_value_load_callback_t type_loader = NULL;
 
         uint8_t* values = NULL;
         bool*    nulls  = NULL;
@@ -48,7 +49,7 @@ protected:
         std::string label = "";
 
         mutable std::list<mutex_t> mutexs;
-        mutable int use_count;
+        mutable int use_count = 0;
 
         bool can_read = true;
         bool can_write = true;
@@ -58,24 +59,33 @@ protected:
 
     // == variables ==
 
-    content_t* content;
+    _column_t* _column;
 
 
 
 
     // == private init ==
     
-    inline void _init(df_type_t data_type, long length, long start_capacity);
+    void _init(df_type_t data_type, long start_capacity = 0);
     
     template<typename T>
-    inline void _init_typed_value(df_type_t data_type, const std::initializer_list<T>& sources);
+    void _init_typed_value(df_type_t data_type, const std::initializer_list<T>& sources);
+
+
+    // == private destroy / copy / move ==
+
+    void _destroy() noexcept;
+
+    void _copy(const df_column_t& other) noexcept;
+
+    void _move(const df_column_t& other) noexcept;
 
 
     // == private lock ==
 
-    shared_lock_t shared_lock(long start, long end) const;
+    shared_lock_t _shared_lock(long start, long end) const;
 
-    unique_lock_t unique_lock(long start, long end) const;
+    unique_lock_t _unique_lock(long start, long end) const;
 
 public:
     // == destroy ==
@@ -85,7 +95,7 @@ public:
 
     // == init ==
 
-    df_column_t(df_type_t data_type, long start_capacity);
+    df_column_t(df_type_t data_type, long start_capacity = 0);
 
     df_column_t(const std::initializer_list<df_object_t>& objects);
 
@@ -95,16 +105,16 @@ public:
 
     // == copy ==
 
-    df_column_t(const df_column_t& src) noexcept;
+    df_column_t(const df_column_t& other) noexcept;
 
-    df_column_t& operator=(const df_column_t& src) noexcept;
+    df_column_t& operator=(const df_column_t& other) noexcept;
 
 
     // == move ==
 
-    df_column_t(const df_column_t&& src) noexcept;
+    df_column_t(const df_column_t&& other) noexcept;
 
-    df_column_t& operator=(const df_column_t&& src) noexcept;
+    df_column_t& operator=(const df_column_t&& other) noexcept;
 
 
 
@@ -134,7 +144,7 @@ public:
 
     df_object_range_t range(long start = 0, long end = -1, long interval = 1);
     
-    df_const_object_range_t range(long start = 0, long end = -1, long interval = 1) const;
+    df_object_range_t range(long start = 0, long end = -1, long interval = 1) const;
 
 
 
@@ -162,9 +172,9 @@ public:
 
     df_column_t& extend(const std::vector<df_object_t>& objects);
 
-    df_column_t& extend(const df_column_t& objects);
-
     df_column_t& extend(const df_object_range_t& objects);
+
+    df_column_t& extend(const df_column_t& objects);
 
     
     

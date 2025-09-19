@@ -13,6 +13,7 @@ features:
 
 #include "../config.hpp"
 #include "value.hpp"
+#include "mutex.hpp"
 
 #include <vector>
 
@@ -36,15 +37,15 @@ class df_object_t {
     friend class df_row_t;
 
     std::vector<std::string>* category_titles = NULL;
+    uint8_t local_buffer[DF_MAX_TYPE_SIZE] = {0};
 
-    bool*    target_null     = NULL;
+    bool*       target_null     = NULL;
     uint8_t*    target_value     = NULL;
     df_value_t  target_preload;
-    df_type_t   target_type     = DF_TYPE_UINT8;
+    df_lock_t   target_lock;
 
-    bool        lock_state  = false;
-
-    uint8_t buffer[DF_MAX_TYPE_SIZE] = {0};
+    df_type_t data_type = DF_TYPE_UINT8;
+    bool object_lock = false;
 
 
 
@@ -60,12 +61,10 @@ class df_object_t {
 
 
 
-    void set_target(bool* target_null, uint8_t* target_value, df_value_load_callback_t loader);
-
-    void lock();
+    void _set_target(bool* target_null, uint8_t* target_value, df_value_load_callback_t loader);
 
 
-    inline void basic_set(df_type_t dest_type);
+    inline void _change_type(df_type_t dest_type);
 
 public:
     // == destroy ==
@@ -108,6 +107,10 @@ public:
 
 
     // == set ==
+
+    void lock();
+
+
 
     template<typename T> df_object_t& operator=(const T src);
 
